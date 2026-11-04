@@ -1,0 +1,1732 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CSCI143 SQL Quiz Prep</title>
+<meta name="description" content="Interactive prep for Mike Izbicki's CSCI143 SQL quizzes: every query runs live on Postgres and SQLite side by side.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #f5f6f8;
+  --panel: #ffffff;
+  --sunk: #eef0f3;
+  --ink: #18212c;
+  --muted: #566170;
+  --faint: #8a93a0;
+  --line: #dde1e7;
+  --line2: #c4cad3;
+  --pg: #2f5d8a;
+  --pg-soft: rgba(47, 93, 138, .10);
+  --pg-strong: rgba(47, 93, 138, .22);
+  --sq: #0e7c66;
+  --sq-soft: rgba(14, 124, 102, .10);
+  --null: #a35a00;
+  --null-soft: rgba(214, 140, 20, .16);
+  --bad: #b3261e;
+  --bad-soft: rgba(179, 38, 30, .09);
+  --good: #1f7a3f;
+  --good-soft: rgba(31, 122, 63, .10);
+  --focus: #5b8def;
+  --sans: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #12161b; --panel: #1a1f26; --sunk: #151a20; --ink: #e7eaee; --muted: #a3acb8; --faint: #6f7884;
+    --line: #2a313a; --line2: #3a434e; --pg: #7fb0dd; --pg-soft: rgba(127, 176, 221, .13); --pg-strong: rgba(127, 176, 221, .26);
+    --sq: #4fc8ad; --sq-soft: rgba(79, 200, 173, .12); --null: #f0b45a; --null-soft: rgba(240, 180, 90, .16);
+    --bad: #ff8a80; --bad-soft: rgba(255, 138, 128, .12); --good: #7ed39a; --good-soft: rgba(126, 211, 154, .12); --focus: #8fb2ff;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #12161b; --panel: #1a1f26; --sunk: #151a20; --ink: #e7eaee; --muted: #a3acb8; --faint: #6f7884;
+  --line: #2a313a; --line2: #3a434e; --pg: #7fb0dd; --pg-soft: rgba(127, 176, 221, .13); --pg-strong: rgba(127, 176, 221, .26);
+  --sq: #4fc8ad; --sq-soft: rgba(79, 200, 173, .12); --null: #f0b45a; --null-soft: rgba(240, 180, 90, .16);
+  --bad: #ff8a80; --bad-soft: rgba(255, 138, 128, .12); --good: #7ed39a; --good-soft: rgba(126, 211, 154, .12); --focus: #8fb2ff;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; scroll-padding-top: 72px; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } * { transition: none !important; animation: none !important; } }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.6 var(--sans); -webkit-font-smoothing: antialiased; }
+a { color: var(--pg); text-underline-offset: 2px; }
+a:hover { text-decoration-thickness: 2px; }
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 4px; }
+code, pre, textarea, .mono { font-family: var(--mono); }
+code { font-size: .9em; background: var(--sunk); border: 1px solid var(--line); padding: 0 .3em; border-radius: 4px; }
+
+/* top bar */
+.top { position: sticky; top: 0; z-index: 20; display: flex; align-items: center; gap: 16px; padding: 10px 20px; background: color-mix(in srgb, var(--bg) 88%, transparent); backdrop-filter: blur(8px); border-bottom: 1px solid var(--line); }
+.brand { font-weight: 600; letter-spacing: -.01em; margin-right: auto; white-space: nowrap; }
+.brand span { color: var(--muted); font-weight: 400; }
+.pill { display: inline-flex; align-items: center; gap: 7px; font-size: 13px; color: var(--muted); white-space: nowrap; }
+.pill i { width: 9px; height: 9px; border-radius: 50%; background: var(--line2); }
+.pill.pg.ready i { background: var(--pg); }
+.pill.sq.ready i { background: var(--sq); }
+.pill.loading i { animation: pulse 1.1s ease-in-out infinite; }
+.pill.failed i { background: var(--bad); }
+@keyframes pulse { 50% { opacity: .3; } }
+.topbtn { font: 13px var(--sans); color: var(--ink); background: var(--panel); border: 1px solid var(--line2); border-radius: 6px; padding: 5px 10px; cursor: pointer; }
+.topbtn:hover { border-color: var(--muted); }
+
+/* layout */
+.shell { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 40px; max-width: 1180px; margin: 0 auto; padding: 0 24px; }
+.toc { position: sticky; top: 64px; align-self: start; padding: 28px 0; font-size: 14px; max-height: calc(100vh - 64px); overflow: auto; }
+.toc ol { list-style: none; margin: 0; padding: 0; }
+.toc li { margin: 0; }
+.toc a { display: block; padding: 4px 10px; color: var(--muted); text-decoration: none; border-left: 2px solid transparent; }
+.toc a:hover { color: var(--ink); }
+.toc a.on { color: var(--ink); border-left-color: var(--pg); font-weight: 500; }
+.toc .sub a { padding-left: 22px; font-size: 13px; }
+main { padding: 32px 0 120px; min-width: 0; max-width: 860px; }
+section.chapter { padding-top: 24px; margin-top: 40px; border-top: 1px solid var(--line); }
+section.chapter:first-of-type { border-top: 0; margin-top: 0; }
+@media (max-width: 900px) {
+  .shell { grid-template-columns: minmax(0, 1fr); padding: 0 16px; gap: 0; }
+  .toc { display: none; }
+  .top { position: static; padding: 8px 16px; gap: 8px 12px; flex-wrap: wrap; }
+  .brand { flex-basis: 100%; }
+  .brand span { display: none; }
+}
+
+/* type */
+h1 { font-size: clamp(30px, 4.4vw, 44px); line-height: 1.1; letter-spacing: -.025em; margin: 8px 0 14px; font-weight: 700; }
+h2 { font-size: 28px; line-height: 1.2; letter-spacing: -.015em; margin: 0 0 10px; }
+h3 { font-size: 19px; line-height: 1.3; margin: 40px 0 8px; letter-spacing: -.005em; }
+h3 .qn { color: var(--faint); font-weight: 500; margin-right: 6px; }
+p, li { max-width: 72ch; }
+.lead { font-size: 18px; color: var(--muted); max-width: 64ch; }
+.muted { color: var(--muted); }
+.small { font-size: 14px; }
+ul.rules { padding-left: 20px; }
+ul.rules li { margin: 4px 0; }
+.engine-pg { color: var(--pg); font-weight: 600; }
+.engine-sq { color: var(--sq); font-weight: 600; }
+.null, .nullword { font-family: var(--mono); font-style: italic; color: var(--null); background: var(--null-soft); padding: 0 .35em; border-radius: 4px; font-size: .92em; }
+.practice-line { font-size: 14px; color: var(--muted); margin: 10px 0 0; }
+.practice-line a { margin-right: 2px; }
+.callout { border-left: 3px solid var(--null); background: var(--null-soft); padding: 10px 14px; border-radius: 0 8px 8px 0; margin: 14px 0; }
+.callout p { margin: 0; }
+
+/* runner */
+.runner { margin: 14px 0 6px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); overflow: hidden; }
+.runner textarea { display: block; width: 100%; border: 0; border-bottom: 1px solid var(--line); background: var(--sunk); color: var(--ink); font-size: 13.5px; line-height: 1.55; padding: 12px 14px; resize: vertical; min-height: 44px; tab-size: 4; }
+.runner textarea:focus { outline: none; background: var(--panel); }
+.runbar { display: flex; align-items: center; gap: 12px; padding: 8px 12px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+button.run, .btn { font: 500 13px var(--sans); color: #fff; background: var(--ink); border: 1px solid var(--ink); border-radius: 6px; padding: 6px 12px; cursor: pointer; }
+:root[data-theme="dark"] button.run, :root[data-theme="dark"] .btn { color: var(--bg); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) button.run, :root:not([data-theme="light"]) .btn { color: var(--bg); } }
+button.run:hover, .btn:hover { opacity: .88; }
+.ghost { font: 500 13px var(--sans); color: var(--ink); background: transparent; border: 1px solid var(--line2); border-radius: 6px; padding: 6px 12px; cursor: pointer; }
+.ghost:hover { border-color: var(--muted); }
+button:disabled { opacity: .4; cursor: default; }
+.hint { font-size: 12px; color: var(--faint); }
+.verdict { margin-left: auto; font-size: 13px; font-weight: 500; padding: 2px 10px; border-radius: 999px; }
+.verdict.same { color: var(--good); background: var(--good-soft); }
+.verdict.diff { color: var(--bad); background: var(--bad-soft); }
+.panes { display: grid; grid-template-columns: 1fr 1fr; }
+.pane { min-width: 0; padding: 10px 12px 12px; }
+.pane + .pane { border-left: 1px solid var(--line); }
+.pane h4 { margin: 0 0 6px; font-size: 13px; font-weight: 600; }
+.pane.pg h4 { color: var(--pg); }
+.pane.sq h4 { color: var(--sq); }
+@media (max-width: 620px) { .panes { grid-template-columns: 1fr; } .pane + .pane { border-left: 0; border-top: 1px solid var(--line); } }
+.grid-wrap { overflow: auto; max-height: 300px; }
+table.grid { border-collapse: collapse; font: 13px/1.45 var(--mono); min-width: 100%; }
+table.grid th { text-align: left; font-weight: 600; color: var(--muted); border-bottom: 1px solid var(--line2); padding: 3px 10px 3px 0; white-space: nowrap; position: sticky; top: 0; background: var(--panel); }
+table.grid td { padding: 3px 10px 3px 0; border-bottom: 1px solid var(--line); white-space: nowrap; }
+table.grid tr:last-child td { border-bottom: 0; }
+.rowcount { font-size: 12px; color: var(--faint); margin-top: 6px; }
+.err { font: 13px/1.5 var(--mono); color: var(--bad); background: var(--bad-soft); padding: 8px 10px; border-radius: 6px; word-break: break-word; }
+.err b { font-family: var(--sans); }
+.pending, .ok-empty { font-size: 13px; color: var(--faint); }
+
+/* prose tables */
+table.facts { border-collapse: collapse; width: 100%; font-size: 14.5px; margin: 14px 0; }
+table.facts th, table.facts td { text-align: left; vertical-align: top; padding: 9px 12px 9px 0; border-bottom: 1px solid var(--line); }
+table.facts th { font-weight: 600; color: var(--muted); font-size: 13px; border-bottom-color: var(--line2); }
+table.facts td.pg { color: var(--pg); }
+table.facts td.sq { color: var(--sq); }
+table.facts tr.try { cursor: pointer; }
+table.facts tr.try:hover td { background: var(--sunk); }
+table.facts tr.try.on td { background: var(--pg-soft); }
+.trybtn { font: 500 12px var(--sans); border: 1px solid var(--line2); background: var(--panel); color: var(--ink); border-radius: 5px; padding: 3px 8px; cursor: pointer; white-space: nowrap; }
+.tablewrap { overflow-x: auto; }
+
+/* code blocks */
+pre.code { background: var(--sunk); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; font-size: 13px; line-height: 1.55; overflow: auto; max-height: 380px; margin: 12px 0; }
+details.given { border: 1px solid var(--line); border-radius: 10px; background: var(--panel); margin: 14px 0; }
+details.given > summary { cursor: pointer; padding: 12px 14px; font-weight: 600; list-style: none; display: flex; gap: 10px; align-items: baseline; }
+details.given > summary::-webkit-details-marker { display: none; }
+details.given > summary::before { content: "+"; font-family: var(--mono); color: var(--muted); width: 12px; }
+details.given[open] > summary::before { content: "\2212"; }
+details.given > summary span { font-weight: 400; color: var(--muted); font-size: 14px; }
+details.given .inner { padding: 0 14px 14px; }
+details.given pre.code { margin-top: 0; }
+
+/* hero */
+.hero { padding-top: 12px; }
+.hero .runner { box-shadow: 0 1px 0 var(--line), 0 12px 32px -20px rgba(24, 33, 44, .35); }
+.howto { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; margin: 26px 0 8px; padding: 0; list-style: none; counter-reset: s; }
+.howto li { counter-increment: s; font-size: 14.5px; color: var(--muted); }
+.howto li::before { content: counter(s); display: block; font: 600 13px var(--mono); color: var(--ink); width: 24px; height: 24px; line-height: 22px; text-align: center; border: 1px solid var(--line2); border-radius: 50%; margin-bottom: 8px; }
+.howto b { color: var(--ink); font-weight: 600; }
+@media (max-width: 700px) { .howto { grid-template-columns: 1fr; } }
+
+/* stepper */
+.stepper { border: 1px solid var(--line); border-radius: 10px; background: var(--panel); margin: 16px 0; overflow: hidden; }
+.step-grid { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); }
+@media (max-width: 760px) { .step-grid { grid-template-columns: 1fr; } }
+.step-left { background: var(--sunk); border-right: 1px solid var(--line); padding: 12px 0; }
+@media (max-width: 760px) { .step-left { border-right: 0; border-bottom: 1px solid var(--line); } }
+.step-cap { font-size: 12px; color: var(--faint); padding: 0 14px 6px; }
+pre.step-code { margin: 0; font-size: 13px; line-height: 1.5; overflow-x: auto; }
+pre.step-code .ln { display: block; padding: 2px 14px; border-left: 3px solid transparent; white-space: pre; }
+pre.step-code .ln.done { color: var(--muted); }
+pre.step-code .ln.on { background: var(--pg-soft); border-left-color: var(--pg); color: var(--ink); font-weight: 500; }
+.step-right { padding: 14px 16px 16px; min-width: 0; }
+.step-dots { list-style: none; display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 12px; padding: 0; }
+.step-dots button { font: 500 12px var(--mono); width: 28px; height: 28px; border-radius: 50%; border: 1px solid var(--line2); background: var(--panel); color: var(--muted); cursor: pointer; }
+.step-dots li.on button { background: var(--pg); border-color: var(--pg); color: #fff; }
+.step-title { margin: 0 0 4px; font-size: 15px; }
+.step-note { margin: 0 0 10px; font-size: 14px; color: var(--muted); }
+.step-table { overflow: auto; }
+.step-table tr.drop td { text-decoration: line-through; color: var(--faint); }
+.step-table tr.hot td { background: var(--pg-soft); font-weight: 600; }
+.step-table tr.group-start td { border-top: 2px solid var(--line2); }
+.step-nav { display: flex; gap: 8px; margin-top: 14px; }
+
+/* explorers */
+.explorer { border: 1px solid var(--line); border-radius: 10px; background: var(--panel); padding: 14px 16px 16px; margin: 16px 0; }
+.controls { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 12px; }
+.controls label { font-size: 13px; color: var(--muted); display: inline-flex; gap: 6px; align-items: center; }
+select, .explorer input[type="text"] { font: 13px var(--sans); color: var(--ink); background: var(--panel); border: 1px solid var(--line2); border-radius: 6px; padding: 5px 8px; }
+.seg { display: inline-flex; border: 1px solid var(--line2); border-radius: 7px; overflow: hidden; }
+.seg button { font: 500 12.5px var(--sans); background: var(--panel); color: var(--muted); border: 0; border-right: 1px solid var(--line2); padding: 6px 11px; cursor: pointer; }
+.seg button:last-child { border-right: 0; }
+.seg button[aria-pressed="true"] { background: var(--ink); color: var(--panel); }
+.joinsvg svg, .treesvg svg { width: 100%; height: auto; display: block; }
+.joinsvg .jh, .treesvg .th { font: 600 13px var(--sans); fill: var(--ink); text-anchor: middle; }
+.jr rect { fill: var(--panel); stroke: var(--line2); stroke-width: 1; }
+.jr text { font: 12.5px var(--mono); fill: var(--ink); text-anchor: middle; pointer-events: none; }
+.jr.hit rect { fill: var(--pg-soft); stroke: var(--pg); }
+.jr.kept rect { fill: var(--null-soft); stroke: var(--null); }
+.jr.miss text { fill: var(--faint); }
+.jr.nullk rect { stroke-dasharray: 4 3; }
+.jr { cursor: pointer; outline: none; }
+.jr:focus-visible rect { stroke: var(--focus); stroke-width: 2; }
+.jl { fill: none; stroke: var(--pg); stroke-width: 1.4; opacity: .75; }
+.jl.pad { stroke: var(--null); stroke-dasharray: 3 3; }
+.padt { font: 11.5px var(--sans); fill: var(--null); }
+.joinsvg.focus .jl { opacity: .12; }
+.joinsvg.focus .jl.lit { opacity: 1; stroke-width: 2.4; }
+.joinsvg.focus .jr.lit rect { stroke-width: 2; }
+.joinstat { display: flex; gap: 18px; align-items: flex-start; margin-top: 10px; font-size: 14px; }
+.joinstat .big { font: 600 40px/1 var(--sans); letter-spacing: -.02em; min-width: 64px; }
+.joinstat .what { color: var(--muted); }
+.checkrow { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-top: 12px; }
+pre.sqlline { margin: 0; flex: 1 1 320px; font-size: 12.5px; background: var(--sunk); border: 1px solid var(--line); border-radius: 6px; padding: 7px 10px; overflow-x: auto; white-space: pre-wrap; }
+.checkout { font-size: 13.5px; margin-top: 8px; min-height: 1px; }
+.tag { font: 600 12px var(--sans); padding: 1px 7px; border-radius: 4px; margin-right: 4px; }
+.tag.pg { color: var(--pg); background: var(--pg-soft); }
+.tag.sq { color: var(--sq); background: var(--sq-soft); margin-left: 12px; }
+
+table.eval { border-collapse: collapse; width: 100%; font-size: 13.5px; }
+table.eval th { text-align: left; font-size: 12.5px; color: var(--muted); font-weight: 600; border-bottom: 1px solid var(--line2); padding: 6px 10px 6px 0; }
+table.eval td { padding: 7px 10px 7px 0; border-bottom: 1px solid var(--line); vertical-align: top; }
+table.eval td.row { font-family: var(--mono); white-space: nowrap; }
+table.eval td.res { white-space: nowrap; font-family: var(--mono); }
+.chip { display: inline-block; font: 600 12px var(--sans); padding: 1px 8px; border-radius: 999px; }
+.chip.kept { color: var(--good); background: var(--good-soft); }
+.chip.dropped { color: var(--muted); background: var(--sunk); border: 1px solid var(--line); }
+table.eval tr.fresh td { animation: flash .8s ease-out; }
+@keyframes flash { from { background: var(--pg-strong); } to { background: transparent; } }
+.total { display: flex; gap: 12px; align-items: baseline; margin-top: 12px; font-size: 14px; }
+.total b { font: 600 32px/1 var(--sans); }
+
+.tnode rect { fill: var(--panel); stroke: var(--line2); stroke-width: 1.2; }
+.tnode text { font: 500 12.5px var(--mono); fill: var(--ink); text-anchor: middle; }
+.tnode.r rect { fill: var(--pg-soft); stroke: var(--pg); stroke-width: 2; }
+.tnode.seed rect { fill: var(--pg-strong); }
+.tnode .rb { font: 600 10.5px var(--sans); fill: var(--pg); }
+.tedge { stroke: var(--line2); stroke-width: 1.2; fill: none; }
+.tedge.r { stroke: var(--pg); stroke-width: 2.2; }
+.roundlog { font-size: 14px; margin: 10px 0 0; padding-left: 20px; }
+.roundlog li { margin: 3px 0; }
+.recgrid { display: grid; grid-template-columns: 1fr; gap: 8px; margin-top: 8px; }
+
+/* bytes */
+.colrows { display: grid; gap: 6px; margin-bottom: 10px; }
+.colrow { display: grid; grid-template-columns: 70px 150px minmax(0, 1fr) auto; gap: 6px; align-items: center; }
+.colrow input, .colrow select { width: 100%; font: 13px var(--mono); }
+.colrow .acts { display: flex; gap: 4px; }
+.colrow .acts button { font: 13px var(--mono); width: 28px; height: 28px; border: 1px solid var(--line2); background: var(--panel); color: var(--ink); border-radius: 5px; cursor: pointer; }
+@media (max-width: 560px) { .colrow { grid-template-columns: 56px 1fr; } .colrow .val { grid-column: 1 / -1; } .colrow .acts { grid-column: 1 / -1; } }
+.colhead { display: grid; grid-template-columns: 70px 150px minmax(0, 1fr) auto; gap: 6px; font-size: 12px; color: var(--faint); }
+@media (max-width: 560px) { .colhead { display: none; } }
+.bytes-out { display: grid; grid-template-columns: 1fr; gap: 18px; margin-top: 16px; }
+.engine-box { border-top: 2px solid var(--line2); padding-top: 10px; }
+.engine-box.pg { border-top-color: var(--pg); }
+.engine-box.sq { border-top-color: var(--sq); }
+.engine-box h4 { margin: 0 0 2px; font-size: 14px; }
+.engine-box.pg h4 { color: var(--pg); }
+.engine-box.sq h4 { color: var(--sq); }
+.sizeline { font-size: 14px; margin: 0 0 10px; }
+.sizeline b { font: 600 22px var(--sans); }
+.bar { display: flex; height: 42px; border: 1px solid var(--line2); border-radius: 6px; overflow: hidden; background: var(--panel); }
+.bar > div { position: relative; display: flex; align-items: center; justify-content: center; font: 500 11.5px var(--mono); color: var(--ink); overflow: hidden; white-space: nowrap; border-right: 1px solid var(--line2); min-width: 2px; background-image: repeating-linear-gradient(90deg, transparent 0 calc(var(--bw) - 1px), color-mix(in srgb, var(--line2) 55%, transparent) calc(var(--bw) - 1px) var(--bw)); }
+.bar > div:last-child { border-right: 0; }
+.bar .hdr { background-color: var(--sunk); }
+.bar .col { background-color: var(--pg-soft); }
+.bar.sqbar .col { background-color: var(--sq-soft); }
+.bar .pad { background-color: var(--null-soft); color: var(--null); }
+.bar .sqh { background-color: var(--sunk); }
+.ruler { display: flex; justify-content: space-between; font: 11px var(--mono); color: var(--faint); margin-top: 3px; }
+table.layout { border-collapse: collapse; width: 100%; font-size: 13px; margin-top: 10px; }
+table.layout th { text-align: left; font-weight: 600; color: var(--muted); font-size: 12px; border-bottom: 1px solid var(--line2); padding: 4px 10px 4px 0; }
+table.layout td { border-bottom: 1px solid var(--line); padding: 4px 10px 4px 0; font-family: var(--mono); font-size: 12.5px; }
+table.layout td.why { font-family: var(--sans); color: var(--muted); font-size: 13px; }
+table.layout tr.padrow td { color: var(--null); }
+
+/* practice */
+.filters { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin: 12px 0; }
+.progress { font-size: 14px; color: var(--muted); margin-left: auto; }
+.progress b { color: var(--ink); }
+ul.practice { list-style: none; padding: 0; margin: 0; border-top: 1px solid var(--line); }
+ul.practice li { display: grid; grid-template-columns: 24px minmax(0, 1fr) auto; gap: 10px; align-items: baseline; padding: 9px 0; border-bottom: 1px solid var(--line); max-width: none; }
+ul.practice input { margin: 0; width: 16px; height: 16px; accent-color: var(--pg); }
+ul.practice .t a { font-weight: 500; }
+ul.practice .t span { color: var(--muted); font-size: 13.5px; }
+ul.practice .site { font-size: 12px; font-weight: 600; padding: 1px 7px; border-radius: 4px; background: var(--sunk); color: var(--muted); border: 1px solid var(--line); }
+ul.practice li.done .t a { color: var(--muted); text-decoration: line-through; }
+
+ul.checks { list-style: none; padding: 0; }
+ul.checks li { display: flex; gap: 10px; padding: 7px 0; border-bottom: 1px solid var(--line); max-width: none; }
+ul.checks input { margin-top: 5px; accent-color: var(--pg); }
+footer { margin-top: 60px; padding-top: 18px; border-top: 1px solid var(--line); font-size: 13.5px; color: var(--muted); }
+.noscript { padding: 12px; background: var(--bad-soft); color: var(--bad); border-radius: 8px; }
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="brand">CSCI143 SQL quiz prep <span>for Izbicki's quizzes 1 to 3</span></div>
+  <span class="pill pg loading" id="pill-pg"><i></i><span>Postgres loading</span></span>
+  <span class="pill sq loading" id="pill-sq"><i></i><span>SQLite loading</span></span>
+  <button class="topbtn" id="reset-db" type="button" title="Rebuild every table from his CREATE TABLE code">Reset tables</button>
+  <button class="topbtn" id="theme" type="button" aria-label="Switch light or dark theme">Theme</button>
+</header>
+
+<div class="shell">
+<nav class="toc" aria-label="Sections">
+  <ol>
+    <li><a href="#start">Start here</a></li>
+    <li><a href="#given">The tables you're given</a></li>
+    <li><a href="#engines">Postgres vs SQLite</a></li>
+    <li><a href="#q1">Quiz 1</a></li>
+    <li class="sub"><a href="#q1-order">How a query runs</a></li>
+    <li class="sub"><a href="#q1-null">NULL logic</a></li>
+    <li class="sub"><a href="#q1-agg">Aggregates</a></li>
+    <li class="sub"><a href="#q1-case">CASE and COALESCE</a></li>
+    <li class="sub"><a href="#q1-like">LIKE and ILIKE</a></li>
+    <li class="sub"><a href="#q1-group">GROUP BY and HAVING</a></li>
+    <li class="sub"><a href="#q1-joins">Joins</a></li>
+    <li class="sub"><a href="#q1-window">Window functions</a></li>
+    <li class="sub"><a href="#q1-reuse">Views, CTEs, functions</a></li>
+    <li><a href="#q2">Quiz 2</a></li>
+    <li class="sub"><a href="#q2-sub">Subqueries</a></li>
+    <li class="sub"><a href="#q2-set">Set operations</a></li>
+    <li class="sub"><a href="#q2-outer">Outer joins</a></li>
+    <li class="sub"><a href="#q2-anti">Anti-joins</a></li>
+    <li class="sub"><a href="#q2-rec">Recursive CTEs</a></li>
+    <li><a href="#q3">Quiz 3</a></li>
+    <li><a href="#apply">DataLemur walkthroughs</a></li>
+    <li><a href="#practice">Practice tracker</a></li>
+    <li><a href="#checklist">Quiz-day checklist</a></li>
+  </ol>
+</nav>
+
+<main>
+<noscript><p class="noscript">This page runs SQL in your browser, so it needs JavaScript turned on.</p></noscript>
+
+<section class="chapter hero" id="start">
+  <h1>Every query here runs on real Postgres and real SQLite, side by side.</h1>
+  <p class="lead">His quizzes hand you a query and ask what it prints in sqlite3 and in postgres. This page lets you check your hand-trace on both engines, edit any query, and see where they disagree.</p>
+  <div data-runner><script type="text/sql">-- Edit me and press Run (or Ctrl+Enter).
+SELECT id, sum(id) OVER (ORDER BY id) AS running_sum
+FROM basket_a
+ORDER BY id;</script></div>
+  <p class="small muted">Same data, same query, different output: Postgres sorts <span class="null">NULL</span> last, SQLite sorts it first, so every running total shifts. Both engines load in your browser (about 4 MB, once). Nothing is sent anywhere.</p>
+  <ol class="howto">
+    <li><b>Read the code.</b> The quiz gives you CREATE TABLE and INSERT statements. Turn them into a grid and circle every NULL and duplicate row.</li>
+    <li><b>Trace in order.</b> FROM, WHERE, GROUP BY, HAVING, SELECT, ORDER BY. Write down the rows that survive each step.</li>
+    <li><b>Answer twice.</b> Write the output for both engines, or "error", or "sqlite3 and postgres are the same".</li>
+  </ol>
+</section>
+
+<section class="chapter" id="given">
+  <h2>The tables you're given</h2>
+  <p>You don't memorize these. On the quiz they arrive as code, exactly like below, and your first job is to read the INSERTs carefully. This page has both quizzes' tables loaded, plus the DataLemur example tables used later.</p>
+  <details class="given" open>
+    <summary>Quiz 1: basket_a and basket_b <span>quiz1/create_tables.sql</span></summary>
+    <div class="inner">
+      <pre class="code">/* This database is essentially the same as the postgres tutorial for joins:
+ * &lt;https://www.postgresqltutorial.com/postgresql-tutorial/postgresql-joins/&gt;
+ * Changes include:
+ * - Adding NULL columns
+ * - Adding duplicate rows
+ * - Changing the id name of the two tables to match
+ */
+
+CREATE TABLE basket_a (
+    id INT,
+    fruit_a VARCHAR(100)
+);
+
+CREATE TABLE basket_b (
+    id INT,
+    fruit_b VARCHAR(100)
+);
+
+INSERT INTO basket_a (id, fruit_a)
+VALUES
+    (1, &#x27;Apple&#x27;),
+    (1, &#x27;Apple&#x27;),
+    (2, &#x27;Orange&#x27;),
+    (3, &#x27;Banana&#x27;),
+    (NULL, &#x27;Cucumber&#x27;),
+    (4, NULL),
+    (NULL, NULL);
+
+INSERT INTO basket_b (id, fruit_b)
+VALUES
+    (1, &#x27;Apple&#x27;),
+    (2, &#x27;Apple&#x27;),
+    (3, &#x27;Orange&#x27;),
+    (4, &#x27;Orange&#x27;),
+    (5, &#x27;Watermelon&#x27;),
+    (NULL, &#x27;Pear&#x27;),
+    (6, NULL),
+    (NULL, NULL);</pre>
+      <p class="small muted">What to circle: two identical <code>(1, 'Apple')</code> rows, <span class="null">NULL</span> ids in both tables, and <span class="null">NULL</span> fruits. Run this to see the grid:</p>
+      <div data-runner><script type="text/sql">SELECT * FROM basket_a;</script></div>
+    </div>
+  </details>
+  <details class="given">
+    <summary>Quiz 2: session, message, price <span>quiz2/create_tables.sql</span></summary>
+    <div class="inner">
+      <pre class="code">/* This database is inspired by the tables that the `dic` tool
+ * uses to store its LLM conversation history.
+ * It is deliberately simplified so that every row can be read
+ * and every query can be calculated by hand.
+ */
+
+-- stores the &quot;name&quot; of the terminal that &quot;owns&quot; the conversation
+CREATE TABLE session (
+    sid INT,
+    name TEXT
+);
+
+/* A message is one round of a conversation: a prompt and the reply it got.
+ *
+ * mid       the message&#x27;s id; it sorts in the order the turns happened
+ * prev_mid  the mid of the message this one replies to,
+ *           or NULL for a message that begins a conversation
+ * sid       the session the round was written under
+ * model_id  the model that answered
+ * user1     the user1&#x27;s prompt
+ * response  the model&#x27;s reply
+ *
+ * Every message with a NULL prev_mid is a root, so the whole table is a
+ * forest and not a single tree.
+ */
+CREATE TABLE message (
+    mid INT,
+    prev_mid INT,
+    sid INT,
+    model_id TEXT,
+    user1 TEXT,
+    response TEXT
+);
+
+/* A price is what one token costs for that model.
+ */
+CREATE TABLE price (
+    model_id TEXT,
+    per_tok REAL
+);
+
+
+INSERT INTO session (sid, name)
+VALUES
+    (1,   &#x27;a&#x27;),
+    (2,   &#x27;a/b&#x27;),
+    (2,   &#x27;a/b&#x27;),
+    (3,   &#x27;c&#x27;),
+    (NULL, &#x27;a/c&#x27;),
+    (4,   &#x27;ab&#x27;),
+    (5,   &#x27;a/b/c&#x27;);
+
+INSERT INTO message (mid, prev_mid, sid, model_id, user1, response)
+VALUES
+    (10, NULL, 1,    &#x27;gpt&#x27;,    &#x27;how do I reverse a linked list in python?&#x27;,
+                               &#x27;walk it once with three pointers: prev, cur and next&#x27;),
+    (11, 10,   1,    &#x27;gpt&#x27;,    &#x27;can you show the recursive version instead?&#x27;,
+                               &#x27;here it is, with a helper that returns the new head&#x27;),
+    (12, 11,   2,    &#x27;claude&#x27;, &#x27;why does the recursive version blow the stack?&#x27;,
+                               &#x27;python stops at a thousand frames by default&#x27;),
+    (13, 11,   2,    &#x27;claude&#x27;, &#x27;can you show it with an explicit stack instead?&#x27;,
+                               &#x27;push each node as you pass it, then pop to relink&#x27;),
+    (14, 12,   2,    NULL,     &#x27;how do I raise that limit?&#x27;,
+                               &#x27;sys.setrecursionlimit, but an explicit stack is safer&#x27;),
+    (15, NULL, 3,    &#x27;gpt&#x27;,    &#x27;what is the time complexity of quicksort?&#x27;,
+                               &#x27;average is O(n log n), worst case is O(n^2)&#x27;),
+    (15, NULL, 3,    &#x27;gpt&#x27;,    &#x27;what is the time complexity of quicksort?&#x27;,
+                               &#x27;average is O(n log n), worst case is O(n^2)&#x27;),
+    (16, 15,   NULL, &#x27;gpt&#x27;,    &#x27;when does the worst case actually happen?&#x27;,
+                               &#x27;when the pivot is always the smallest or largest item left&#x27;),
+    (17, 13,   2,    &#x27;claude&#x27;, &#x27;does that use less memory?&#x27;,
+                               &#x27;each frame moves to the heap, so the C stack stays flat&#x27;),
+    (17, 13,   2,    &#x27;claude&#x27;, &#x27;does that use less memory?&#x27;,
+                               &#x27;each frame moves to the heap, so the C stack stays flat&#x27;),
+    (18, 16,   NULL, &#x27;gpt&#x27;,    &#x27;how do I avoid that?&#x27;,
+                               &#x27;pick a random pivot, or the median of three&#x27;),
+    (19, NULL, 3,    &#x27;claude&#x27;, &#x27;write me a haiku about sql&#x27;,
+                               &#x27;tables wait in rows, a join returns the pairs, the index still hums&#x27;),
+    (20, 19,   3,    &#x27;claude&#x27;, &#x27;now one about NULL&#x27;,
+                               &#x27;unknown is not false, the row that never matched, waits for a join&#x27;),
+    (21, 20,   3,    &#x27;claude&#x27;, &#x27;one about indexes&#x27;,
+                               &#x27;a b-tree of keys, the planner picks a path, seq scan in the rain&#x27;),
+    (22, 21,   3,    &#x27;claude&#x27;, &#x27;one about transactions&#x27;,
+                               &#x27;all or none commits, the lock waits for the other, then the world moves on&#x27;),
+    (23, 18,   NULL, &#x27;gpt&#x27;,    &#x27;does that help for already sorted input?&#x27;,
+                               &#x27;it helps most there, which is where you need it&#x27;),
+    (24, 13,   2,    NULL,     &#x27;which one would you write in production?&#x27;,
+                               NULL),
+    (25, 24,   2,    &#x27;claude&#x27;, &#x27;so should I just use a loop?&#x27;,
+                               &#x27;in python, yes; the loop is the faster one&#x27;),
+    (26, 18,   9,    &#x27;gpt&#x27;,    &#x27;does that help for already sorted input?&#x27;,
+                               &#x27;it helps most there, which is where you need it&#x27;),
+    (27, 11,   1,    &#x27;mistral&#x27;,&#x27;what if the model is not in the price table?&#x27;,
+                               &#x27;then it is charged nothing; the table has no rule for it&#x27;),
+    (28, 27,   1,    &#x27;mistral&#x27;,&#x27;should the report show it anyway?&#x27;,
+                               &#x27;it shows the tokens, and zero dollars beside them&#x27;);
+
+INSERT INTO price (model_id, per_tok)
+VALUES
+    (&#x27;gpt&#x27;,    1.0),
+    (&#x27;claude&#x27;, 3.0),
+    (&#x27;llama&#x27;,  0.5);</pre>
+      <p class="small muted">What to circle: sid 2 appears twice in session, one session has sid <span class="null">NULL</span>, mids 15 and 17 are duplicated, some messages have sid or model_id <span class="null">NULL</span>, sid 9 has no session, and mistral has no price.</p>
+      <div data-runner><script type="text/sql">SELECT sid, count(*) AS messages
+FROM message
+GROUP BY sid
+ORDER BY sid;</script></div>
+    </div>
+  </details>
+</section>
+
+<section class="chapter" id="engines">
+  <h2>Postgres vs SQLite</h2>
+  <p><span class="engine-pg">Postgres is strict</span>: real types, errors on anything ambiguous, NULL sorts last. <span class="engine-sq">SQLite is forgiving</span>: loose types, guesses instead of erroring, NULL sorts first. Almost every quiz answer that differs between the engines comes from one row of this table. Pick a row to run its example below.</p>
+  <div class="tablewrap">
+  <table class="facts" id="difftable">
+    <thead><tr><th>Situation</th><th>Postgres</th><th>SQLite</th><th></th></tr></thead>
+    <tbody>
+      <tr class="try" data-sql="SELECT id, fruit_a FROM basket_a ORDER BY id;"><td>NULL in ORDER BY</td><td class="pg">sorted last</td><td class="sq">sorted first</td><td><button class="trybtn" type="button">Run</button></td></tr>
+      <tr class="try" data-sql="SELECT count(*) FROM basket_a WHERE fruit_a LIKE '%a%';"><td><code>LIKE</code></td><td class="pg">case-sensitive (2 rows)</td><td class="sq">case-insensitive (4 rows)</td><td><button class="trybtn" type="button">Run</button></td></tr>
+      <tr class="try" data-sql="SELECT count(*) FROM basket_a WHERE fruit_a ILIKE '%a%';"><td><code>ILIKE</code></td><td class="pg">case-insensitive LIKE</td><td class="sq">doesn't exist: error</td><td><button class="trybtn" type="button">Run</button></td></tr>
+      <tr class="try" data-sql="SELECT count(*) FROM (
+    SELECT model_id FROM message
+    UNION ALL
+    SELECT sid FROM session
+) t;"><td>Mixing types (text UNION int)</td><td class="pg">error</td><td class="sq">works (28 rows)</td><td><button class="trybtn" type="button">Run</button></td></tr>
+      <tr class="try" data-sql="SELECT max(1, NULL), min(2, 3);"><td><code>max(a, b)</code> with two arguments</td><td class="pg">error (use greatest)</td><td class="sq">scalar max, NULL if any argument is NULL</td><td><button class="trybtn" type="button">Run</button></td></tr>
+      <tr class="try" data-sql="SELECT name FROM session
+WHERE sid = (SELECT sid FROM message WHERE mid = 15);"><td>Single-value subquery returns 2+ rows</td><td class="pg">error</td><td class="sq">silently uses the first row</td><td><button class="trybtn" type="button">Run</button></td></tr>
+      <tr class="try" data-sql="SELECT id, rank() OVER (ORDER BY id), lag(id) OVER (ORDER BY id)
+FROM basket_a
+ORDER BY id;"><td>Window functions over a column with NULLs</td><td class="pg">NULL rows ranked last</td><td class="sq">NULL rows ranked first</td><td><button class="trybtn" type="button">Run</button></td></tr>
+      <tr class="try" data-sql="SELECT fruit_a, count(*) FROM basket_a GROUP BY fruit_a ORDER BY fruit_a;"><td>GROUP BY with a NULL group, sorted</td><td class="pg">NULL group last</td><td class="sq">NULL group first</td><td><button class="trybtn" type="button">Run</button></td></tr>
+      <tr class="try" data-sql="SELECT true, false, 1 = 1;"><td>Booleans</td><td class="pg">real true / false</td><td class="sq">just 1 / 0</td><td><button class="trybtn" type="button">Run</button></td></tr>
+      <tr class="try" data-sql="CREATE OR REPLACE FUNCTION count_in_a(min_id INT) RETURNS INT
+LANGUAGE sql AS $$
+    SELECT count(*)::INT FROM basket_a WHERE id >= min_id;
+$$;
+SELECT count_in_a(2), count_in_a(3);"><td>SQL functions</td><td class="pg"><code>CREATE FUNCTION ... LANGUAGE sql</code> works</td><td class="sq">only in C: error</td><td><button class="trybtn" type="button">Run</button></td></tr>
+      <tr><td>Bytes per row</td><td class="pg">24-byte header, alignment padding, multiple of 8</td><td class="sq">varint header, never padding</td><td><a class="trybtn" href="#q3" style="text-decoration:none">Calculator</a></td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div data-runner id="diff-runner"><script type="text/sql">SELECT id, fruit_a FROM basket_a ORDER BY id;</script></div>
+  <p class="small muted">The same on both engines: NULL logic (<code>NULL = NULL</code> is NULL), aggregates skipping NULLs, join counts, set operations treating NULLs as equal, <code>NOT IN</code> returning nothing when the list holds a NULL, and recursive CTEs. DataLemur and LeetCode run Postgres or MySQL, so the SQLite column is yours to remember.</p>
+</section>
+
+<section class="chapter" id="q1">
+  <h2>Quiz 1: basics, NULL, joins, window functions</h2>
+  <p>Source: <code>quiz1/quiz_notes_1.sql</code>. His four practice problems were a COALESCE sum, an ILIKE count, a self join and a <code>lag</code> window function.</p>
+
+  <h3 id="q1-order">How each line of a query runs</h3>
+  <p>A query is written SELECT-first but runs FROM-first. Step through it and watch which rows survive each clause. This is exactly how you trace his problems by hand.</p>
+  <div data-stepper="exec"></div>
+
+  <h3 id="q1-null">NULL poisons everything</h3>
+  <ul class="rules">
+    <li>Any operator on NULL returns NULL, including <code>NULL = NULL</code>. Test with <code>IS NULL</code>.</li>
+    <li>WHERE keeps a row only when the condition is TRUE. NULL counts as "not TRUE", so the row is dropped.</li>
+  </ul>
+  <div data-runner><script type="text/sql">SELECT 'a' || NULL AS concat, 1 + NULL AS plus,
+       NULL = NULL AS equals, NULL IS NULL AS is_null;</script></div>
+  <div data-runner><script type="text/sql">-- 5 rows have an id, but only 3 survive: NULL <> 1 is NULL, not TRUE.
+SELECT count(*) FROM basket_a WHERE id <> 1;</script></div>
+  <p class="practice-line">Practice: <a href="https://datalemur.com/questions/tesla-unfinished-parts" target="_blank" rel="noopener">Unfinished Parts</a> (DataLemur), <a href="https://leetcode.com/problems/find-customer-referee/" target="_blank" rel="noopener">584. Find Customer Referee</a> (LeetCode, the classic <code>&lt;&gt; 2</code> NULL trap)</p>
+
+  <h3 id="q1-agg">Aggregates skip NULLs, count(*) doesn't</h3>
+  <div data-runner><script type="text/sql">SELECT count(*), count(id), count(fruit_a), count(DISTINCT id),
+       sum(id), max(fruit_a)
+FROM basket_a;</script></div>
+  <div data-runner><script type="text/sql">-- His Problem 1: the two NULL ids become 1s, so 11 + 2 = 13.
+SELECT sum(COALESCE(id, 1)) FROM basket_a;</script></div>
+  <p class="small muted">With two arguments, <code>max</code> and <code>min</code> aren't aggregates. See the Postgres vs SQLite table above.</p>
+  <p class="practice-line">Practice: <a href="https://datalemur.com/questions/cards-issued-difference" target="_blank" rel="noopener">Cards Issued Difference</a>, <a href="https://leetcode.com/problems/article-views-i/" target="_blank" rel="noopener">1148. Article Views I</a></p>
+
+  <h3 id="q1-case">CASE and COALESCE</h3>
+  <ul class="rules">
+    <li>A CASE with no matching branch and no ELSE returns NULL.</li>
+    <li>CASE inside an aggregate is the most common interview pattern: turn each row into 1 or 0, then sum.</li>
+    <li><code>COALESCE(a, b, ...)</code> returns the first argument that isn't NULL.</li>
+  </ul>
+  <div data-runner><script type="text/sql">SELECT sum(CASE WHEN fruit_a = 'Apple' THEN 1 ELSE 0 END) AS apples_sum,
+       count(CASE WHEN fruit_a = 'Apple' THEN 1 END)      AS apples_count
+FROM basket_a;</script></div>
+  <div data-runner><script type="text/sql">SELECT id, fruit_a,
+       CASE WHEN id >= 3 THEN 'big' WHEN id >= 1 THEN 'small' END AS size,
+       COALESCE(fruit_a, 'unknown') AS fruit
+FROM basket_a
+ORDER BY id;</script></div>
+  <p class="practice-line">Practice: <a href="https://datalemur.com/questions/laptop-mobile-viewership" target="_blank" rel="noopener">Laptop vs. Mobile Viewership</a>, <a href="https://datalemur.com/questions/final-account-balance" target="_blank" rel="noopener">Final Account Balance</a>, <a href="https://leetcode.com/problems/triangle-judgement/" target="_blank" rel="noopener">610. Triangle Judgement</a>, <a href="https://leetcode.com/problems/queries-quality-and-percentage/" target="_blank" rel="noopener">1211. Queries Quality and Percentage</a></p>
+
+  <h3 id="q1-like">LIKE vs ILIKE</h3>
+  <p>The fruit names are capitalized, so case sensitivity decides the count.</p>
+  <div data-runner><script type="text/sql">SELECT count(*) FROM basket_a WHERE fruit_a LIKE '%a%';</script></div>
+  <div data-runner><script type="text/sql">-- His Problem 2
+SELECT count(*) FROM basket_a WHERE fruit_a ILIKE '%a%';</script></div>
+  <p class="practice-line">Practice: <a href="https://leetcode.com/problems/patients-with-a-condition/" target="_blank" rel="noopener">1527. Patients With a Condition</a></p>
+
+  <h3 id="q1-group">GROUP BY, WHERE vs HAVING</h3>
+  <ul class="rules">
+    <li>NULL forms its own group.</li>
+    <li>WHERE filters rows before grouping and can't contain aggregates. HAVING filters groups after grouping and can.</li>
+  </ul>
+  <div data-runner><script type="text/sql">SELECT fruit_a, count(*)
+FROM basket_a
+GROUP BY fruit_a
+HAVING count(*) >= 1
+ORDER BY fruit_a;</script></div>
+  <div data-runner><script type="text/sql">-- An aggregate in WHERE is an error on both engines.
+SELECT fruit_a FROM basket_a WHERE count(*) > 1 GROUP BY fruit_a;</script></div>
+  <p class="practice-line">Practice: <a href="https://datalemur.com/questions/matching-skills" target="_blank" rel="noopener">Data Science Skills</a>, <a href="https://datalemur.com/questions/duplicate-job-listings" target="_blank" rel="noopener">Duplicate Job Listings</a>, <a href="https://leetcode.com/problems/managers-with-at-least-5-direct-reports/" target="_blank" rel="noopener">570. Managers with at Least 5 Direct Reports</a></p>
+
+  <h3 id="q1-joins">Joins are a cross join plus a filter</h3>
+  <p>Every join starts as a cross join (every row paired with every row) and keeps the pairs where the condition is TRUE. To count by hand: for each key value, multiply left count by right count, then add. NULL keys contribute nothing. Hover or tab to a row to see its partners, then switch join types.</p>
+  <div data-join="id"></div>
+  <div data-runner><script type="text/sql">-- His Problem 3: the two id-1 rows match each other 2 x 2 = 4, plus ids 2, 3, 4.
+SELECT count(*)
+FROM basket_a a1
+JOIN basket_a a2 USING (id);</script></div>
+  <div data-runner><script type="text/sql">-- NATURAL JOIN joins on every shared column name. Here that's only id.
+-- Avoid it in real code: adding a column silently changes the join.
+SELECT count(*) FROM basket_a NATURAL JOIN basket_b;</script></div>
+  <p class="practice-line">Practice: <a href="https://datalemur.com/questions/completed-trades" target="_blank" rel="noopener">Cities With Completed Trades</a>, <a href="https://datalemur.com/questions/sql-well-paid-employees" target="_blank" rel="noopener">Well Paid Employees</a>, <a href="https://datalemur.com/questions/pizzas-topping-cost" target="_blank" rel="noopener">3-Topping Pizzas</a>, <a href="https://leetcode.com/problems/employees-earning-more-than-their-managers/" target="_blank" rel="noopener">181. Employees Earning More Than Their Managers</a>, <a href="https://leetcode.com/problems/students-and-examinations/" target="_blank" rel="noopener">1280. Students and Examinations</a></p>
+
+  <h3 id="q1-window">Window functions (his Problem 4 was <code>lag</code>)</h3>
+  <ul class="rules">
+    <li>A window function computes an aggregate over a frame of rows and returns it for every row, without collapsing rows like GROUP BY.</li>
+    <li><code>OVER ()</code> is the whole table. <code>PARTITION BY</code> works like GROUP BY inside the frame.</li>
+    <li><code>ORDER BY</code> inside OVER makes a running frame. The default (RANGE) includes tied rows together. <code>ROWS UNBOUNDED PRECEDING</code> gives a strict row-by-row prefix.</li>
+    <li>Because NULL sorts at opposite ends, nearly every window query on <code>id</code> differs between the engines.</li>
+  </ul>
+  <div data-window></div>
+  <p class="practice-line">Practice: <a href="https://datalemur.com/questions/sql-third-transaction" target="_blank" rel="noopener">User's Third Transaction</a>, <a href="https://datalemur.com/questions/sql-top-three-salaries" target="_blank" rel="noopener">Top Three Salaries</a>, <a href="https://datalemur.com/questions/rolling-average-tweets" target="_blank" rel="noopener">Tweets' Rolling Averages</a>, <a href="https://leetcode.com/problems/rank-scores/" target="_blank" rel="noopener">178. Rank Scores</a>, <a href="https://leetcode.com/problems/last-person-to-fit-in-the-bus/" target="_blank" rel="noopener">1204. Last Person to Fit in the Bus</a></p>
+
+  <h3 id="q1-reuse">Views, CTEs and functions</h3>
+  <p>A SQL function is global and takes parameters, a VIEW is global without parameters, and a CTE is local to one statement. A view is pasted into your query every time it runs, so it never makes anything faster.</p>
+  <div data-runner><script type="text/sql">DROP VIEW IF EXISTS apples;
+CREATE VIEW apples AS SELECT * FROM basket_a WHERE fruit_a = 'Apple';
+SELECT count(*) FROM apples NATURAL JOIN basket_b;</script></div>
+  <div data-runner><script type="text/sql">WITH large_a AS (
+    SELECT * FROM basket_a WHERE id >= 2
+)
+SELECT count(*) FROM large_a;</script></div>
+  <p class="practice-line">Practice: <a href="https://leetcode.com/problems/nth-highest-salary/" target="_blank" rel="noopener">177. Nth Highest Salary</a> (write a Postgres SQL function)</p>
+</section>
+
+<section class="chapter" id="q2">
+  <h2>Quiz 2: subqueries, set operations, outer joins, recursion</h2>
+  <p>Source: <code>quiz2/quiz_notes_2.sql</code>, <code>join_notes.sql</code> and <code>recursive_cte.sql</code>, on the session / message / price tables.</p>
+
+  <h3 id="q2-sub">Subqueries</h3>
+  <ul class="rules">
+    <li>A subquery in FROM must be given a name: <code>FROM (SELECT ...) t</code>.</li>
+    <li>A subquery used as a single value must return one row. When it returns more, Postgres errors and SQLite quietly takes the first row.</li>
+    <li>Adding DISTINCT inside an <code>IN (subquery)</code> never changes the result.</li>
+  </ul>
+  <div data-runner><script type="text/sql">-- mid 15 is duplicated, so this subquery returns 2 rows.
+SELECT name FROM session
+WHERE sid = (SELECT sid FROM message WHERE mid = 15);</script></div>
+  <div data-runner><script type="text/sql">SELECT count(*) FROM (SELECT DISTINCT sid FROM message) t;</script></div>
+  <p class="practice-line">Practice: <a href="https://datalemur.com/questions/sql-histogram-tweets" target="_blank" rel="noopener">Histogram of Tweets</a>, <a href="https://datalemur.com/questions/sql-second-highest-salary" target="_blank" rel="noopener">Second Highest Salary</a>, <a href="https://datalemur.com/questions/supercloud-customer" target="_blank" rel="noopener">Supercloud Customer</a>, <a href="https://leetcode.com/problems/second-highest-salary/" target="_blank" rel="noopener">176. Second Highest Salary</a>, <a href="https://leetcode.com/problems/game-play-analysis-iv/" target="_blank" rel="noopener">550. Game Play Analysis IV</a></p>
+
+  <h3 id="q2-set">Set operations stack results vertically</h3>
+  <ul class="rules">
+    <li><code>UNION ALL</code> concatenates. <code>UNION</code>, <code>INTERSECT</code> and <code>EXCEPT</code> also remove duplicates, and here two NULLs count as duplicates.</li>
+    <li>Column names come from the first query. Postgres requires the types to match; SQLite doesn't.</li>
+  </ul>
+  <div data-runner><script type="text/sql">-- His Problem 1
+SELECT count(*) FROM (
+    SELECT model_id FROM message
+    UNION ALL
+    SELECT sid FROM session
+) t;</script></div>
+  <div data-runner><script type="text/sql">SELECT sid FROM message
+UNION
+SELECT sid FROM session
+ORDER BY 1;</script></div>
+  <div data-runner><script type="text/sql">-- Try INTERSECT, and price EXCEPT message, too.
+SELECT model_id FROM message
+EXCEPT
+SELECT model_id FROM price
+ORDER BY 1;</script></div>
+  <p class="practice-line">Practice: <a href="https://datalemur.com/questions/spotify-streaming-history" target="_blank" rel="noopener">Spotify Streaming History</a>, <a href="https://leetcode.com/problems/count-salary-categories/" target="_blank" rel="noopener">1907. Count Salary Categories</a>, <a href="https://leetcode.com/problems/movie-rating/" target="_blank" rel="noopener">1341. Movie Rating</a></p>
+
+  <h3 id="q2-outer">Outer joins: the inner join plus the unmatched rows</h3>
+  <p>LEFT JOIN keeps every left row; rows with no partner get NULLs on the right. RIGHT JOIN is LEFT JOIN with the tables swapped, and FULL JOIN keeps unmatched rows from both sides. Switch between them on session and message, the shape of his notes.</p>
+  <div data-join="sid"></div>
+  <p class="practice-line">Practice: <a href="https://datalemur.com/questions/signup-confirmation-rate" target="_blank" rel="noopener">Signup Activation Rate</a>, <a href="https://datalemur.com/questions/sql-ibm-db2-product-analytics" target="_blank" rel="noopener">IBM db2 Product Analytics</a>, <a href="https://leetcode.com/problems/replace-employee-id-with-the-unique-identifier/" target="_blank" rel="noopener">1378. Replace Employee ID</a>, <a href="https://leetcode.com/problems/confirmation-rate/" target="_blank" rel="noopener">1934. Confirmation Rate</a>, <a href="https://leetcode.com/problems/average-selling-price/" target="_blank" rel="noopener">1251. Average Selling Price</a></p>
+
+  <h3 id="q2-anti">Anti-joins: NOT IN vs LEFT JOIN ... IS NULL</h3>
+  <p>Both ask "which sessions have no messages?", but NULLs make them disagree. This is the most-tested trap in Quiz 2: his Problems 2 and 3 are these two queries. Step through each session row.</p>
+  <div data-anti></div>
+  <div class="callout"><p><b>Rule:</b> if the list inside <code>NOT IN (...)</code> contains a single NULL, the query returns nothing. LEFT JOIN + IS NULL and NOT EXISTS treat a NULL key as "no match" instead.</p></div>
+  <p class="practice-line">Practice: <a href="https://datalemur.com/questions/sql-page-with-no-likes" target="_blank" rel="noopener">Page With No Likes</a>, <a href="https://leetcode.com/problems/customers-who-never-order/" target="_blank" rel="noopener">183. Customers Who Never Order</a>, <a href="https://leetcode.com/problems/customer-who-visited-but-did-not-make-any-transactions/" target="_blank" rel="noopener">1581. Customer Who Visited but Did Not Make Any Transactions</a>, <a href="https://leetcode.com/problems/employee-bonus/" target="_blank" rel="noopener">577. Employee Bonus</a></p>
+
+  <h3 id="q2-rec">Recursive CTEs: walking the conversation tree</h3>
+  <p>A recursive CTE has a seed query, then <code>UNION</code> or <code>UNION ALL</code>, then a query that joins the table to the CTE itself. Each round joins only against the rows the previous round added, and it stops when a round adds nothing. Pick a seed and step through the rounds.</p>
+  <div data-rec></div>
+  <p class="practice-line">Practice: DataLemur has no free recursive problem, and LeetCode's recursive CTE problems are Premium. Work through <code>quiz2/recursive_cte.sql</code> here instead. The closest free warm-up is <a href="https://datalemur.com/questions/senior-managers-reportees" target="_blank" rel="noopener">Senior Managers</a> (two levels of self join).</p>
+  <p class="small muted">Not on the quiz but on the homework: arrays and <code>unnest</code> (Postgres only), and GROUPING SETS / ROLLUP / CUBE.</p>
+</section>
+
+<section class="chapter" id="q3">
+  <h2>Quiz 3: bytes per row</h2>
+  <p>The quiz gives two CREATE TABLEs (reorder the columns to use the least space) and two INSERTs (state the bytes per row), answered for both engines. You may use a computer and a database during it. Edit the columns below and the layout recomputes.</p>
+  <ul class="rules">
+    <li><b>Postgres</b>: a 23-byte header, plus a null bitmap only if the row contains a NULL (1 bit per column, rounded up to whole bytes), padded to a multiple of 8. Then each non-NULL value starts at a multiple of its alignment. NULLs take 0 bytes. The row is padded to a multiple of 8.</li>
+    <li><b>SQLite</b>: 1 byte for the header length, 1 byte per column for its type code, then the values with no padding. NULL, 0 and 1 take 0 body bytes. Small integers shrink to 1, 2, 3, 4, 6 or 8 bytes. A whole-number real in a REAL column is stored as an integer.</li>
+  </ul>
+  <div data-bytes></div>
+  <p class="small muted">"Check in real Postgres" builds the table in the in-browser Postgres and asks <code>pg_column_size</code>, which reports header + data before the final padding.</p>
+  <h3>Rest of Topic 06, short-answer level</h3>
+  <ul class="rules">
+    <li><b>Normalization</b> splits data into tables linked by keys so each fact is stored once. <b>Denormalization</b> merges them, trading redundancy for fewer joins. He talks about "more or less normalized", not numbered normal forms.</li>
+    <li><b>Constraints</b>: NOT NULL, UNIQUE, CHECK, PRIMARY KEY (UNIQUE NOT NULL), REFERENCES (foreign key). In pagila, <code>payment.rental_id UNIQUE REFERENCES rental</code> means every payment has a rental and each rental has at most one payment.</li>
+    <li><b>TOAST</b>: values over about 2 KB are compressed or moved to a hidden side table, leaving a pointer in the row.</li>
+  </ul>
+</section>
+
+<section class="chapter" id="apply">
+  <h2>DataLemur walkthroughs</h2>
+  <p>Each is one of his quiz patterns on a DataLemur table, loaded here with DataLemur's example rows. Step through the trace, then run the solution, edit it, and break it on purpose.</p>
+
+  <h3>Page With No Likes <span class="muted small">Quiz 2 anti-join</span></h3>
+  <p class="small"><a href="https://datalemur.com/questions/sql-page-with-no-likes" target="_blank" rel="noopener">Open on DataLemur</a>. Same shape as his session LEFT JOIN message problem.</p>
+  <div data-stepper="likes"></div>
+  <div data-runner><script type="text/sql">SELECT p.page_id
+FROM pages p
+LEFT JOIN page_likes l ON p.page_id = l.page_id
+WHERE l.page_id IS NULL
+ORDER BY p.page_id;</script></div>
+
+  <h3>Laptop vs. Mobile Viewership <span class="muted small">Quiz 1 CASE inside sum</span></h3>
+  <p class="small"><a href="https://datalemur.com/questions/laptop-mobile-viewership" target="_blank" rel="noopener">Open on DataLemur</a>. His <code>sum(CASE WHEN fruit_a = 'Apple' ...)</code> with a different table.</p>
+  <div data-stepper="laptop"></div>
+  <div data-runner><script type="text/sql">SELECT
+  sum(CASE WHEN device_type = 'laptop' THEN 1 ELSE 0 END)             AS laptop_views,
+  sum(CASE WHEN device_type IN ('tablet', 'phone') THEN 1 ELSE 0 END) AS mobile_views
+FROM viewership;</script></div>
+
+  <h3>Histogram of Tweets <span class="muted small">Quiz 1 GROUP BY + Quiz 2 subquery in FROM</span></h3>
+  <p class="small"><a href="https://datalemur.com/questions/sql-histogram-tweets" target="_blank" rel="noopener">Open on DataLemur</a>. The inner count becomes a column that the outer query groups on.</p>
+  <div data-stepper="tweets"></div>
+  <div data-runner><script type="text/sql">SELECT tweet_bucket, count(*) AS users_num
+FROM (
+    SELECT user_id, count(*) AS tweet_bucket
+    FROM tweets
+    WHERE tweet_date >= '2022-01-01' AND tweet_date < '2023-01-01'
+    GROUP BY user_id
+) t
+GROUP BY tweet_bucket
+ORDER BY tweet_bucket;</script></div>
+
+  <h3>User's Third Transaction <span class="muted small">Quiz 1 window functions</span></h3>
+  <p class="small"><a href="https://datalemur.com/questions/sql-third-transaction" target="_blank" rel="noopener">Open on DataLemur</a>. WHERE runs before window functions, so compute <code>rn</code> inside a subquery and filter outside.</p>
+  <div data-stepper="third"></div>
+  <div data-runner><script type="text/sql">SELECT user_id, spend, transaction_date
+FROM (
+    SELECT *, row_number() OVER (PARTITION BY user_id ORDER BY transaction_date) AS rn
+    FROM transactions
+) t
+WHERE rn = 3;</script></div>
+</section>
+
+<section class="chapter" id="practice">
+  <h2>Practice tracker</h2>
+  <p>Free DataLemur and LeetCode problems, grouped by the quiz pattern they drill. Ticks are saved in this browser.</p>
+  <div data-practice></div>
+</section>
+
+<section class="chapter" id="checklist">
+  <h2>Quiz-day checklist</h2>
+  <p>Run through this for every problem before writing "sqlite3 and postgres are the same".</p>
+  <ul class="checks">
+    <li><input type="checkbox" aria-label="done"><span>Did any NULL get sorted? Postgres puts it last, SQLite first, and that ripples into GROUP BY output and every window function.</span></li>
+    <li><input type="checkbox" aria-label="done"><span>LIKE: case-sensitive in Postgres, case-insensitive in SQLite. ILIKE is an error in SQLite.</span></li>
+    <li><input type="checkbox" aria-label="done"><span>Do the types match across a UNION, or in a comparison? Postgres errors; SQLite carries on.</span></li>
+    <li><input type="checkbox" aria-label="done"><span>Does a single-value subquery return more than one row? Postgres errors; SQLite uses the first.</span></li>
+    <li><input type="checkbox" aria-label="done"><span><code>NOT IN</code> over a list containing NULL returns nothing, on both engines.</span></li>
+    <li><input type="checkbox" aria-label="done"><span>NULL never matches in a join, but UNION, INTERSECT, EXCEPT, DISTINCT and GROUP BY treat NULLs as equal.</span></li>
+    <li><input type="checkbox" aria-label="done"><span><code>count(*)</code> counts NULL rows; <code>count(col)</code> doesn't.</span></li>
+    <li><input type="checkbox" aria-label="done"><span>Join count = the sum over each key of (left count × right count). Duplicates multiply.</span></li>
+    <li><input type="checkbox" aria-label="done"><span>A window ORDER BY defaults to RANGE, which includes tied rows; ROWS doesn't.</span></li>
+    <li><input type="checkbox" aria-label="done"><span>A recursive CTE seeded on a duplicated row walks once per copy with UNION ALL, once with UNION.</span></li>
+  </ul>
+  <footer>
+    Built from <a href="https://github.com/mikeizbicki/cmc-csci143" target="_blank" rel="noopener">mikeizbicki/cmc-csci143</a> (topics 04 to 06) and <a href="https://github.com/mikeizbicki/sql_quiz" target="_blank" rel="noopener">mikeizbicki/sql_quiz</a> (quiz1, quiz2 and quiz3 branches). Tables are his <code>create_tables.sql</code> files, unchanged. Engines: <a href="https://pglite.dev" target="_blank" rel="noopener">PGlite</a> (Postgres 18 compiled to WebAssembly) and <a href="https://sql.js.org" target="_blank" rel="noopener">sql.js</a> (SQLite compiled to WebAssembly).
+  </footer>
+</section>
+</main>
+</div>
+
+<script type="text/sql" id="seed-quiz1">/* This database is essentially the same as the postgres tutorial for joins:
+ * <https://www.postgresqltutorial.com/postgresql-tutorial/postgresql-joins/>
+ * Changes include:
+ * - Adding NULL columns
+ * - Adding duplicate rows
+ * - Changing the id name of the two tables to match
+ */
+
+CREATE TABLE basket_a (
+    id INT,
+    fruit_a VARCHAR(100)
+);
+
+CREATE TABLE basket_b (
+    id INT,
+    fruit_b VARCHAR(100)
+);
+
+INSERT INTO basket_a (id, fruit_a)
+VALUES
+    (1, 'Apple'),
+    (1, 'Apple'),
+    (2, 'Orange'),
+    (3, 'Banana'),
+    (NULL, 'Cucumber'),
+    (4, NULL),
+    (NULL, NULL);
+
+INSERT INTO basket_b (id, fruit_b)
+VALUES
+    (1, 'Apple'),
+    (2, 'Apple'),
+    (3, 'Orange'),
+    (4, 'Orange'),
+    (5, 'Watermelon'),
+    (NULL, 'Pear'),
+    (6, NULL),
+    (NULL, NULL);
+</script>
+<script type="text/sql" id="seed-quiz2">/* This database is inspired by the tables that the `dic` tool
+ * uses to store its LLM conversation history.
+ * It is deliberately simplified so that every row can be read
+ * and every query can be calculated by hand.
+ */
+
+-- stores the "name" of the terminal that "owns" the conversation
+CREATE TABLE session (
+    sid INT,
+    name TEXT
+);
+
+/* A message is one round of a conversation: a prompt and the reply it got.
+ *
+ * mid       the message's id; it sorts in the order the turns happened
+ * prev_mid  the mid of the message this one replies to,
+ *           or NULL for a message that begins a conversation
+ * sid       the session the round was written under
+ * model_id  the model that answered
+ * user1     the user1's prompt
+ * response  the model's reply
+ *
+ * Every message with a NULL prev_mid is a root, so the whole table is a
+ * forest and not a single tree.
+ */
+CREATE TABLE message (
+    mid INT,
+    prev_mid INT,
+    sid INT,
+    model_id TEXT,
+    user1 TEXT,
+    response TEXT
+);
+
+/* A price is what one token costs for that model.
+ */
+CREATE TABLE price (
+    model_id TEXT,
+    per_tok REAL
+);
+
+
+INSERT INTO session (sid, name)
+VALUES
+    (1,   'a'),
+    (2,   'a/b'),
+    (2,   'a/b'),
+    (3,   'c'),
+    (NULL, 'a/c'),
+    (4,   'ab'),
+    (5,   'a/b/c');
+
+INSERT INTO message (mid, prev_mid, sid, model_id, user1, response)
+VALUES
+    (10, NULL, 1,    'gpt',    'how do I reverse a linked list in python?',
+                               'walk it once with three pointers: prev, cur and next'),
+    (11, 10,   1,    'gpt',    'can you show the recursive version instead?',
+                               'here it is, with a helper that returns the new head'),
+    (12, 11,   2,    'claude', 'why does the recursive version blow the stack?',
+                               'python stops at a thousand frames by default'),
+    (13, 11,   2,    'claude', 'can you show it with an explicit stack instead?',
+                               'push each node as you pass it, then pop to relink'),
+    (14, 12,   2,    NULL,     'how do I raise that limit?',
+                               'sys.setrecursionlimit, but an explicit stack is safer'),
+    (15, NULL, 3,    'gpt',    'what is the time complexity of quicksort?',
+                               'average is O(n log n), worst case is O(n^2)'),
+    (15, NULL, 3,    'gpt',    'what is the time complexity of quicksort?',
+                               'average is O(n log n), worst case is O(n^2)'),
+    (16, 15,   NULL, 'gpt',    'when does the worst case actually happen?',
+                               'when the pivot is always the smallest or largest item left'),
+    (17, 13,   2,    'claude', 'does that use less memory?',
+                               'each frame moves to the heap, so the C stack stays flat'),
+    (17, 13,   2,    'claude', 'does that use less memory?',
+                               'each frame moves to the heap, so the C stack stays flat'),
+    (18, 16,   NULL, 'gpt',    'how do I avoid that?',
+                               'pick a random pivot, or the median of three'),
+    (19, NULL, 3,    'claude', 'write me a haiku about sql',
+                               'tables wait in rows, a join returns the pairs, the index still hums'),
+    (20, 19,   3,    'claude', 'now one about NULL',
+                               'unknown is not false, the row that never matched, waits for a join'),
+    (21, 20,   3,    'claude', 'one about indexes',
+                               'a b-tree of keys, the planner picks a path, seq scan in the rain'),
+    (22, 21,   3,    'claude', 'one about transactions',
+                               'all or none commits, the lock waits for the other, then the world moves on'),
+    (23, 18,   NULL, 'gpt',    'does that help for already sorted input?',
+                               'it helps most there, which is where you need it'),
+    (24, 13,   2,    NULL,     'which one would you write in production?',
+                               NULL),
+    (25, 24,   2,    'claude', 'so should I just use a loop?',
+                               'in python, yes; the loop is the faster one'),
+    (26, 18,   9,    'gpt',    'does that help for already sorted input?',
+                               'it helps most there, which is where you need it'),
+    (27, 11,   1,    'mistral','what if the model is not in the price table?',
+                               'then it is charged nothing; the table has no rule for it'),
+    (28, 27,   1,    'mistral','should the report show it anyway?',
+                               'it shows the tokens, and zero dollars beside them');
+
+INSERT INTO price (model_id, per_tok)
+VALUES
+    ('gpt',    1.0),
+    ('claude', 3.0),
+    ('llama',  0.5);
+</script>
+<script type="text/sql" id="seed-datalemur">
+-- DataLemur example rows (from each problem page)
+CREATE TABLE pages (page_id INTEGER, page_name TEXT);
+INSERT INTO pages VALUES (20001, 'SQL Solutions'), (20045, 'Brain Exercises'), (20701, 'Tips for Data Analysts');
+CREATE TABLE page_likes (user_id INTEGER, page_id INTEGER, liked_date TIMESTAMP);
+INSERT INTO page_likes VALUES (111, 20001, '2022-04-08 00:00:00'), (121, 20045, '2022-03-12 00:00:00'), (156, 20001, '2022-07-25 00:00:00');
+CREATE TABLE viewership (user_id INTEGER, device_type TEXT, view_time TIMESTAMP);
+INSERT INTO viewership VALUES (123, 'tablet', '2022-01-02 00:00:00'), (125, 'laptop', '2022-01-07 00:00:00'), (128, 'laptop', '2022-02-09 00:00:00'), (129, 'phone', '2022-02-09 00:00:00'), (145, 'tablet', '2022-02-24 00:00:00');
+CREATE TABLE transactions (user_id INTEGER, spend REAL, transaction_date TIMESTAMP);
+INSERT INTO transactions VALUES (111, 100.50, '2022-01-08 12:00:00'), (111, 55.00, '2022-01-10 12:00:00'), (121, 36.00, '2022-01-18 12:00:00'), (145, 24.99, '2022-01-26 12:00:00'), (111, 89.60, '2022-02-05 12:00:00');
+CREATE TABLE tweets (tweet_id INTEGER, user_id INTEGER, msg TEXT, tweet_date TIMESTAMP);
+INSERT INTO tweets VALUES (214252, 111, 'Am considering taking Tesla private at $420.', '2021-12-30 00:00:00'), (739252, 111, 'Despite the constant negative press covfefe', '2022-01-01 00:00:00'), (846402, 111, 'Following @NickSinghTech on Twitter changed my life!', '2022-02-14 00:00:00'), (241425, 254, 'If the salary is so competitive why won''t you tell me what it is?', '2022-03-01 00:00:00'), (231574, 148, 'I no longer have a manager. I can''t be managed', '2022-03-23 00:00:00');
+</script>
+<script type="module">
+const PG_URL = 'https://cdn.jsdelivr.net/npm/@electric-sql/pglite@0.5.15/dist/index.js';
+const SQLJS_URL = 'https://cdn.jsdelivr.net/npm/sql.js@1.15.2/dist/sql-wasm.js';
+const SQLJS_WASM = 'https://cdn.jsdelivr.net/npm/sql.js@1.15.2/dist/sql-wasm.wasm';
+
+const $ = (s, el = document) => el.querySelector(s);
+const $$ = (s, el = document) => [...el.querySelectorAll(s)];
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+function h(tag, attrs = {}, ...kids) {
+  const e = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) {
+    if (k === 'class') e.className = v;
+    else if (k === 'html') e.innerHTML = v;
+    else if (k.startsWith('on') && typeof v === 'function') e.addEventListener(k.slice(2), v);
+    else if (v !== false && v != null) e.setAttribute(k, v === true ? '' : v);
+  }
+  for (const k of kids.flat()) { if (k == null || k === false) continue; e.append(k.nodeType ? k : document.createTextNode(String(k))); }
+  return e;
+}
+const fmtV = v => v === null || v === undefined ? 'NULL' : String(v);
+
+/* ---------- storage (per-viewer conveniences only) ---------- */
+const store = {
+  get(k, d) { try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* storage unavailable */ } },
+};
+
+/* ---------- theme ---------- */
+(function theme() {
+  const saved = store.get('csci143-theme', null);
+  if (saved) document.documentElement.dataset.theme = saved;
+  $('#theme').addEventListener('click', () => {
+    const cur = document.documentElement.dataset.theme || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+    const next = cur === 'dark' ? 'light' : 'dark';
+    document.documentElement.dataset.theme = next; store.set('csci143-theme', next);
+  });
+})();
+
+/* ---------- engines ---------- */
+const SEED = ['seed-quiz1', 'seed-quiz2', 'seed-datalemur'].map(id => document.getElementById(id).textContent).join('\n');
+const RAW = { 1082: v => v, 1083: v => v, 1114: v => v, 1184: v => v };
+const Eng = {
+  pg: { label: 'Postgres', state: 'loading', waiters: [] },
+  sq: { label: 'SQLite', state: 'loading', waiters: [] },
+};
+function updatePill(k) {
+  const e = Eng[k], el = $('#pill-' + k);
+  el.classList.remove('loading', 'ready', 'failed'); el.classList.add(e.state);
+  el.querySelector('span').textContent = e.state === 'ready' ? `${e.label} ready` : e.state === 'failed' ? `${e.label} failed to load` : `${e.label} loading`;
+  if (e.state === 'failed') el.title = String(e.err && e.err.message || e.err);
+}
+function settle(k, err) {
+  const e = Eng[k]; e.state = err ? 'failed' : 'ready'; e.err = err;
+  for (const [res, rej] of e.waiters) err ? rej(err) : res();
+  e.waiters = []; updatePill(k);
+}
+function whenReady(k) {
+  const e = Eng[k];
+  if (e.state === 'ready') return Promise.resolve();
+  if (e.state === 'failed') return Promise.reject(e.err);
+  return new Promise((res, rej) => e.waiters.push([res, rej]));
+}
+function loadScript(src) {
+  return new Promise((res, rej) => { const s = document.createElement('script'); s.src = src; s.onload = res; s.onerror = () => rej(new Error('Could not download ' + src + '. Check your internet connection.')); document.head.append(s); });
+}
+async function bootSqlite() {
+  try {
+    await loadScript(SQLJS_URL);
+    Eng.sq.SQL = await window.initSqlJs({ locateFile: () => SQLJS_WASM });
+    Eng.sq.db = new Eng.sq.SQL.Database(); Eng.sq.db.exec(SEED); settle('sq');
+  } catch (err) { settle('sq', err); }
+}
+async function bootPg() {
+  try {
+    const mod = await import(PG_URL);
+    Eng.pg.db = await mod.PGlite.create(); await Eng.pg.db.exec(SEED); settle('pg');
+  } catch (err) { settle('pg', err); }
+}
+async function run(k, sql) {
+  try { await whenReady(k); } catch (err) { return { ok: false, msg: `${Eng[k].label} didn't load: ${err.message || err}` }; }
+  const e = Eng[k];
+  try {
+    if (k === 'pg') {
+      const res = await e.db.exec(sql, { rowMode: 'array', parsers: RAW });
+      const last = [...res].reverse().find(r => r.fields && r.fields.length);
+      return last ? { ok: true, cols: last.fields.map(f => f.name), rows: last.rows } : { ok: true, cols: [], rows: [] };
+    }
+    const res = e.db.exec(sql);
+    const last = res[res.length - 1];
+    return last ? { ok: true, cols: last.columns, rows: last.values } : { ok: true, cols: [], rows: [] };
+  } catch (err) { return { ok: false, msg: String(err && err.message || err) }; }
+}
+async function resetDbs() {
+  const btn = $('#reset-db'); btn.disabled = true; btn.textContent = 'Resetting';
+  try {
+    if (Eng.sq.state === 'ready') { Eng.sq.db.close(); Eng.sq.db = new Eng.sq.SQL.Database(); Eng.sq.db.exec(SEED); }
+    if (Eng.pg.state === 'ready') { await Eng.pg.db.exec('DROP SCHEMA public CASCADE; CREATE SCHEMA public;\n' + SEED); }
+  } finally { btn.disabled = false; btn.textContent = 'Reset tables'; }
+  for (const r of runners) if (r._ran) r._run();
+}
+$('#reset-db').addEventListener('click', resetDbs);
+
+/* ---------- result rendering ---------- */
+function cellHTML(v) {
+  if (v === null || v === undefined) return '<span class="null">NULL</span>';
+  if (typeof v === 'boolean') return v ? 'true' : 'false';
+  if (v instanceof Uint8Array) return esc("x'" + [...v].map(b => b.toString(16).padStart(2, '0')).join('') + "'");
+  if (typeof v === 'object') return esc(JSON.stringify(v));
+  return esc(v);
+}
+function gridHTML(cols, rows, opts = {}) {
+  return `<table class="grid"><thead><tr>${cols.map(c => `<th>${esc(c)}</th>`).join('')}</tr></thead><tbody>${rows.map((r, i) => `<tr class="${(opts.drop || []).includes(i) ? 'drop' : ''}${(opts.hot || []).includes(i) ? ' hot' : ''}${(opts.groupStart || []).includes(i) ? ' group-start' : ''}">${r.map(v => `<td>${cellHTML(v)}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
+}
+function resultHTML(r) {
+  if (!r) return '<div class="pending">Running</div>';
+  if (!r.ok) return `<div class="err"><b>error</b> ${esc(r.msg)}</div>`;
+  if (!r.cols.length) return '<div class="ok-empty">Ran without returning rows.</div>';
+  return `<div class="grid-wrap">${gridHTML(r.cols, r.rows)}</div><div class="rowcount">${r.rows.length} row${r.rows.length === 1 ? '' : 's'}</div>`;
+}
+function norm(r) {
+  if (!r.ok) return 'ERR';
+  return JSON.stringify(r.rows.map(row => row.map(v => {
+    if (v === null || v === undefined) return null;
+    if (typeof v === 'boolean') return v ? 1 : 0;
+    if (typeof v !== 'object' && v !== '' && !isNaN(Number(v))) return Number(v);
+    return String(v);
+  })));
+}
+
+/* ---------- runner ---------- */
+const runners = [];
+function makeRunner(host, sql) {
+  host.classList.add('runner'); host.innerHTML = '';
+  const ta = h('textarea', { spellcheck: 'false', 'aria-label': 'SQL query', autocapitalize: 'off', autocomplete: 'off' });
+  ta.value = sql.replace(/^\n+|\s+$/g, '');
+  const btn = h('button', { class: 'run', type: 'button' }, 'Run on both');
+  const verdict = h('span', { class: 'verdict', 'aria-live': 'polite' });
+  const pgOut = h('div', { class: 'out' }, h('div', { class: 'pending' }, 'Waiting to run'));
+  const sqOut = h('div', { class: 'out' }, h('div', { class: 'pending' }, 'Waiting to run'));
+  host.append(ta, h('div', { class: 'runbar' }, btn, h('span', { class: 'hint' }, 'Ctrl+Enter runs'), verdict),
+    h('div', { class: 'panes' }, h('section', { class: 'pane pg' }, h('h4', {}, 'Postgres'), pgOut), h('section', { class: 'pane sq' }, h('h4', {}, 'SQLite'), sqOut)));
+  const fit = () => { ta.style.height = 'auto'; ta.style.height = Math.min(ta.scrollHeight + 2, 460) + 'px'; };
+  ta.addEventListener('input', fit); requestAnimationFrame(fit);
+  let seq = 0;
+  async function go() {
+    host._ran = true; const my = ++seq; const q = ta.value;
+    pgOut.innerHTML = resultHTML(null); sqOut.innerHTML = resultHTML(null); verdict.textContent = ''; verdict.className = 'verdict';
+    const [a, b] = await Promise.all([run('pg', q), run('sq', q)]);
+    if (my !== seq) return;
+    pgOut.innerHTML = resultHTML(a); sqOut.innerHTML = resultHTML(b);
+    const same = norm(a) === norm(b);
+    verdict.textContent = same ? (a.ok ? 'Same on both' : 'Error on both') : 'Different';
+    verdict.classList.add(same ? 'same' : 'diff'); host.dataset.verdict = same ? 'same' : 'diff';
+    host.dispatchEvent(new CustomEvent('ran', { detail: { pg: a, sq: b } }));
+  }
+  btn.addEventListener('click', go);
+  ta.addEventListener('keydown', e => {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); go(); }
+    if (e.key === 'Tab' && !e.shiftKey) { e.preventDefault(); const s = ta.selectionStart; ta.setRangeText('    ', s, ta.selectionEnd, 'end'); }
+  });
+  host._run = go; host._set = s => { ta.value = s; fit(); go(); };
+  runners.push(host);
+  return host;
+}
+const lazy = new IntersectionObserver(entries => {
+  for (const en of entries) if (en.isIntersecting) { lazy.unobserve(en.target); if (!en.target._ran) en.target._run(); }
+}, { rootMargin: '300px 0px' });
+
+/* ---------- data (mirrors his INSERTs) ---------- */
+const BA = [[1, 'Apple'], [1, 'Apple'], [2, 'Orange'], [3, 'Banana'], [null, 'Cucumber'], [4, null], [null, null]];
+const BB = [[1, 'Apple'], [2, 'Apple'], [3, 'Orange'], [4, 'Orange'], [5, 'Watermelon'], [null, 'Pear'], [6, null], [null, null]];
+const SESSION = [[1, 'a'], [2, 'a/b'], [2, 'a/b'], [3, 'c'], [null, 'a/c'], [4, 'ab'], [5, 'a/b/c']];
+const MESSAGE = [ // mid, prev_mid, sid, model_id
+  [10, null, 1, 'gpt'], [11, 10, 1, 'gpt'], [12, 11, 2, 'claude'], [13, 11, 2, 'claude'], [14, 12, 2, null],
+  [15, null, 3, 'gpt'], [15, null, 3, 'gpt'], [16, 15, null, 'gpt'], [17, 13, 2, 'claude'], [17, 13, 2, 'claude'],
+  [18, 16, null, 'gpt'], [19, null, 3, 'claude'], [20, 19, 3, 'claude'], [21, 20, 3, 'claude'], [22, 21, 3, 'claude'],
+  [23, 18, null, 'gpt'], [24, 13, 2, null], [25, 24, 2, 'claude'], [26, 18, 9, 'gpt'], [27, 11, 1, 'mistral'], [28, 27, 1, 'mistral'],
+];
+
+/* ---------- stepper ---------- */
+const STEPPERS = {
+  exec: {
+    lines: ['SELECT fruit_a, count(*) AS n', 'FROM basket_a', 'WHERE id >= 1', 'GROUP BY fruit_a', 'HAVING count(*) > 1', 'ORDER BY n DESC;'],
+    steps: [
+      { line: 1, title: 'FROM basket_a', note: 'Start with all 7 rows of the table, exactly as the INSERT wrote them.', cols: ['id', 'fruit_a'], rows: BA },
+      { line: 2, title: 'WHERE id >= 1', note: 'Keep only rows where the condition is TRUE. <span class="null">NULL</span> &gt;= 1 is NULL, so both NULL-id rows are struck out.', cols: ['id', 'fruit_a', 'id >= 1'], rows: BA.map(r => [...r, r[0] === null ? null : 'TRUE']), drop: [4, 6] },
+      { line: 3, title: 'GROUP BY fruit_a', note: 'Collapse the 5 surviving rows into one row per fruit. NULL is its own group.', cols: ['fruit_a', 'rows in this group'], rows: [['Apple', '(1, Apple) (1, Apple)'], ['Orange', '(2, Orange)'], ['Banana', '(3, Banana)'], [null, '(4, NULL)']] },
+      { line: 4, title: 'HAVING count(*) > 1', note: 'HAVING filters groups, not rows, and aggregates are allowed here. Only Apple has more than one row.', cols: ['fruit_a', 'count(*)', 'count(*) > 1'], rows: [['Apple', 2, 'TRUE'], ['Orange', 1, 'FALSE'], ['Banana', 1, 'FALSE'], [null, 1, 'FALSE']], drop: [1, 2, 3] },
+      { line: 0, title: 'SELECT fruit_a, count(*) AS n', note: 'Only now are the output columns built, and the alias <code>n</code> is born. That is why WHERE and GROUP BY can\'t use <code>n</code> but ORDER BY can. Window functions also run here.', cols: ['fruit_a', 'n'], rows: [['Apple', 2]] },
+      { line: 5, title: 'ORDER BY n DESC', note: 'Sorting is last (then LIMIT). One row, the same on both engines. Delete the HAVING line in a runner and the NULL group sorts to opposite ends.', cols: ['fruit_a', 'n'], rows: [['Apple', 2]], hot: [0] },
+    ],
+  },
+  likes: {
+    lines: ['SELECT p.page_id', 'FROM pages p', 'LEFT JOIN page_likes l ON p.page_id = l.page_id', 'WHERE l.page_id IS NULL', 'ORDER BY p.page_id;'],
+    steps: [
+      { line: 1, title: 'FROM pages p', note: 'Three pages.', cols: ['page_id', 'page_name'], rows: [[20001, 'SQL Solutions'], [20045, 'Brain Exercises'], [20701, 'Tips for Data Analysts']] },
+      { line: 2, title: 'LEFT JOIN page_likes l', note: '20001 matches two likes and 20045 one. 20701 has none, so the LEFT JOIN keeps it once and fills the like columns with NULL.', cols: ['p.page_id', 'l.user_id', 'l.page_id'], rows: [[20001, 111, 20001], [20001, 156, 20001], [20045, 121, 20045], [20701, null, null]] },
+      { line: 3, title: 'WHERE l.page_id IS NULL', note: 'Matched rows have a real <code>l.page_id</code>, so IS NULL is FALSE and they go. Only the padded row survives.', cols: ['p.page_id', 'l.user_id', 'l.page_id'], rows: [[20001, 111, 20001], [20001, 156, 20001], [20045, 121, 20045], [20701, null, null]], drop: [0, 1, 2] },
+      { line: 0, title: 'SELECT p.page_id', note: 'Keep one column.', cols: ['page_id'], rows: [[20701]] },
+      { line: 4, title: 'ORDER BY p.page_id', note: 'The answer. <code>SELECT page_id FROM pages EXCEPT SELECT page_id FROM page_likes</code> gives the same, and NOT IN works only because page_likes has no NULL page_id.', cols: ['page_id'], rows: [[20701]], hot: [0] },
+    ],
+  },
+  laptop: {
+    lines: ['SELECT', "  sum(CASE WHEN device_type = 'laptop' THEN 1 ELSE 0 END) AS laptop_views,", "  sum(CASE WHEN device_type IN ('tablet', 'phone') THEN 1 ELSE 0 END) AS mobile_views", 'FROM viewership;'],
+    steps: [
+      { line: 3, title: 'FROM viewership', note: 'Five views.', cols: ['user_id', 'device_type'], rows: [[123, 'tablet'], [125, 'laptop'], [128, 'laptop'], [129, 'phone'], [145, 'tablet']] },
+      { lines: [1], title: 'CASE: laptop', note: 'For every row, the first CASE becomes 1 for a laptop and 0 otherwise.', cols: ['user_id', 'device_type', 'laptop CASE'], rows: [[123, 'tablet', 0], [125, 'laptop', 1], [128, 'laptop', 1], [129, 'phone', 0], [145, 'tablet', 0]] },
+      { lines: [2], title: 'CASE: mobile', note: 'The second CASE is 1 for a tablet or a phone.', cols: ['user_id', 'device_type', 'laptop CASE', 'mobile CASE'], rows: [[123, 'tablet', 0, 1], [125, 'laptop', 1, 0], [128, 'laptop', 1, 0], [129, 'phone', 0, 1], [145, 'tablet', 0, 1]] },
+      { lines: [0, 1, 2], title: 'sum(...)', note: 'No GROUP BY, so the aggregates treat the whole table as one group: 5 rows in, 1 row out.', cols: ['laptop_views', 'mobile_views'], rows: [[2, 3]], hot: [0] },
+    ],
+  },
+  tweets: {
+    lines: ['SELECT tweet_bucket, count(*) AS users_num', 'FROM (', '    SELECT user_id, count(*) AS tweet_bucket', '    FROM tweets', "    WHERE tweet_date >= '2022-01-01' AND tweet_date < '2023-01-01'", '    GROUP BY user_id', ') t', 'GROUP BY tweet_bucket;'],
+    steps: [
+      { line: 3, title: 'FROM tweets (inside)', note: 'The subquery runs first. Five tweets.', cols: ['tweet_id', 'user_id', 'tweet_date'], rows: [[214252, 111, '2021-12-30'], [739252, 111, '2022-01-01'], [846402, 111, '2022-02-14'], [241425, 254, '2022-03-01'], [231574, 148, '2022-03-23']] },
+      { line: 4, title: 'WHERE 2022 only', note: 'The 2021 tweet is outside the range.', cols: ['tweet_id', 'user_id', 'tweet_date'], rows: [[214252, 111, '2021-12-30'], [739252, 111, '2022-01-01'], [846402, 111, '2022-02-14'], [241425, 254, '2022-03-01'], [231574, 148, '2022-03-23']], drop: [0] },
+      { lines: [5, 2], title: 'GROUP BY user_id, count(*)', note: 'One row per user. The count is named <code>tweet_bucket</code>.', cols: ['user_id', 'tweet_bucket'], rows: [[111, 2], [254, 1], [148, 1]] },
+      { lines: [6], title: ') t', note: 'The inner result becomes a table named <code>t</code>. A subquery in FROM must have a name.', cols: ['user_id', 'tweet_bucket'], rows: [[111, 2], [254, 1], [148, 1]] },
+      { line: 7, title: 'GROUP BY tweet_bucket', note: 'Now group the users by their count.', cols: ['tweet_bucket', 'users in group'], rows: [[1, '254, 148'], [2, '111']] },
+      { line: 0, title: 'SELECT tweet_bucket, count(*)', note: 'Count users per bucket: the histogram.', cols: ['tweet_bucket', 'users_num'], rows: [[1, 2], [2, 1]], hot: [0, 1] },
+    ],
+  },
+  third: {
+    lines: ['SELECT user_id, spend, transaction_date', 'FROM (', '    SELECT *, row_number() OVER (', '        PARTITION BY user_id ORDER BY transaction_date) AS rn', '    FROM transactions', ') t', 'WHERE rn = 3;'],
+    steps: [
+      { line: 4, title: 'FROM transactions (inside)', note: 'Five transactions in their original order.', cols: ['user_id', 'spend', 'transaction_date'], rows: [[111, 100.5, '2022-01-08'], [111, 55, '2022-01-10'], [121, 36, '2022-01-18'], [145, 24.99, '2022-01-26'], [111, 89.6, '2022-02-05']] },
+      { line: 3, title: 'PARTITION BY user_id ORDER BY transaction_date', note: 'Split into one window per user, each sorted by date. Thick lines mark where a new partition starts.', cols: ['user_id', 'spend', 'transaction_date'], rows: [[111, 100.5, '2022-01-08'], [111, 55, '2022-01-10'], [111, 89.6, '2022-02-05'], [121, 36, '2022-01-18'], [145, 24.99, '2022-01-26']], groupStart: [3, 4] },
+      { line: 2, title: 'row_number()', note: 'Numbering restarts at 1 in each partition. Only user 111 reaches 3.', cols: ['user_id', 'spend', 'transaction_date', 'rn'], rows: [[111, 100.5, '2022-01-08', 1], [111, 55, '2022-01-10', 2], [111, 89.6, '2022-02-05', 3], [121, 36, '2022-01-18', 1], [145, 24.99, '2022-01-26', 1]], groupStart: [3, 4] },
+      { line: 6, title: 'WHERE rn = 3', note: 'Filter outside, because WHERE runs before window functions. <code>WHERE row_number() OVER (...) = 3</code> is an error.', cols: ['user_id', 'spend', 'transaction_date', 'rn'], rows: [[111, 100.5, '2022-01-08', 1], [111, 55, '2022-01-10', 2], [111, 89.6, '2022-02-05', 3], [121, 36, '2022-01-18', 1], [145, 24.99, '2022-01-26', 1]], drop: [0, 1, 3, 4] },
+      { line: 0, title: 'SELECT user_id, spend, transaction_date', note: 'The answer. rank() would match here because nobody has two transactions at the same moment.', cols: ['user_id', 'spend', 'transaction_date'], rows: [[111, 89.6, '2022-02-05']], hot: [0] },
+    ],
+  },
+};
+function makeStepper(host, cfg) {
+  let i = 0;
+  host.classList.add('stepper');
+  const code = h('pre', { class: 'step-code', 'aria-label': 'Query' });
+  cfg.lines.forEach((ln, idx) => code.append(h('span', { class: 'ln', 'data-i': idx }, ln || ' ')));
+  const dots = h('ol', { class: 'step-dots' });
+  cfg.steps.forEach((s, idx) => dots.append(h('li', {}, h('button', { type: 'button', 'aria-label': `Go to step ${idx + 1}: ${s.title}`, onclick: () => { i = idx; draw(); } }, String(idx + 1)))));
+  const title = h('h4', { class: 'step-title', 'aria-live': 'polite' }), note = h('p', { class: 'step-note' }), table = h('div', { class: 'step-table' });
+  const prev = h('button', { type: 'button', class: 'ghost', onclick: () => { if (i > 0) { i--; draw(); } } }, 'Previous');
+  const next = h('button', { type: 'button', class: 'btn', onclick: () => { if (i < cfg.steps.length - 1) { i++; draw(); } } }, 'Next step');
+  host.append(h('div', { class: 'step-grid' },
+    h('div', { class: 'step-left' }, h('div', { class: 'step-cap' }, 'The query as written. The highlight shows what runs now.'), code),
+    h('div', { class: 'step-right' }, dots, title, note, table, h('div', { class: 'step-nav' }, prev, next))));
+  const linesOf = s => s.lines || [s.line];
+  function draw() {
+    const s = cfg.steps[i], on = linesOf(s), seen = new Set(cfg.steps.slice(0, i).flatMap(linesOf));
+    $$('.ln', code).forEach(el => { const li = +el.dataset.i; el.classList.toggle('on', on.includes(li)); el.classList.toggle('done', seen.has(li) && !on.includes(li)); });
+    $$('li', dots).forEach((li, idx) => li.classList.toggle('on', idx === i));
+    title.textContent = `Step ${i + 1} of ${cfg.steps.length}: ${s.title}`;
+    note.innerHTML = s.note;
+    const kept = s.rows.length - (s.drop || []).length;
+    table.innerHTML = gridHTML(s.cols, s.rows, s) + `<div class="rowcount">${kept} row${kept === 1 ? '' : 's'}${s.drop && s.drop.length ? ' kept; struck rows are removed at this step' : ''}</div>`;
+    prev.disabled = i === 0; next.disabled = i === cfg.steps.length - 1;
+  }
+  draw();
+}
+
+/* ---------- join explorer ---------- */
+const JOIN_SCEN = {
+  id: { label: 'basket_a and basket_b, ON a.id = b.id',
+    L: { name: 'basket_a (id, fruit_a)', rows: BA, show: r => `${fmtV(r[0])}, ${fmtV(r[1])}`, key: r => r[0] },
+    R: { name: 'basket_b (id, fruit_b)', rows: BB, show: r => `${fmtV(r[0])}, ${fmtV(r[1])}`, key: r => r[0] },
+    sql: j => `SELECT count(*) FROM basket_a a ${j} basket_b b${j === 'CROSS JOIN' ? '' : ' ON a.id = b.id'};` },
+  fruit: { label: 'basket_a and basket_b, ON fruit_a = fruit_b',
+    L: { name: 'basket_a (id, fruit_a)', rows: BA, show: r => `${fmtV(r[0])}, ${fmtV(r[1])}`, key: r => r[1] },
+    R: { name: 'basket_b (id, fruit_b)', rows: BB, show: r => `${fmtV(r[0])}, ${fmtV(r[1])}`, key: r => r[1] },
+    sql: j => `SELECT count(*) FROM basket_a a ${j} basket_b b${j === 'CROSS JOIN' ? '' : ' ON a.fruit_a = b.fruit_b'};` },
+  self: { label: 'basket_a with itself, USING (id)',
+    L: { name: 'basket_a a1', rows: BA, show: r => `${fmtV(r[0])}, ${fmtV(r[1])}`, key: r => r[0] },
+    R: { name: 'basket_a a2', rows: BA, show: r => `${fmtV(r[0])}, ${fmtV(r[1])}`, key: r => r[0] },
+    sql: j => `SELECT count(*) FROM basket_a a1 ${j} basket_a a2${j === 'CROSS JOIN' ? '' : ' USING (id)'};` },
+  sid: { label: 'session and message, USING (sid)',
+    L: { name: 'session (sid, name)', rows: SESSION, show: r => `${fmtV(r[0])}, ${r[1]}`, key: r => r[0] },
+    R: { name: 'message (mid, sid)', rows: MESSAGE, show: r => `mid ${r[0]}, sid ${fmtV(r[2])}`, key: r => r[2] },
+    sql: j => `SELECT count(*) FROM session ${j} message${j === 'CROSS JOIN' ? '' : ' USING (sid)'};` },
+};
+const JOIN_TYPES = ['CROSS JOIN', 'INNER JOIN', 'LEFT JOIN', 'RIGHT JOIN', 'FULL JOIN'];
+function makeJoinExplorer(host, start) {
+  host.classList.add('explorer');
+  let scen = start, jt = start === 'sid' ? 'LEFT JOIN' : 'INNER JOIN';
+  const sel = h('select', { 'aria-label': 'Tables to join' });
+  for (const [k, s] of Object.entries(JOIN_SCEN)) sel.append(h('option', { value: k, selected: k === scen }, s.label));
+  const seg = h('div', { class: 'seg', role: 'group', 'aria-label': 'Join type' });
+  JOIN_TYPES.forEach(t => seg.append(h('button', { type: 'button', 'data-t': t, onclick: () => { jt = t; draw(); } }, t.replace(' JOIN', ''))));
+  const svgWrap = h('div', { class: 'joinsvg' }), stat = h('div', { class: 'joinstat', 'aria-live': 'polite' });
+  const sqlLine = h('pre', { class: 'sqlline' }), out = h('div', { class: 'checkout', 'aria-live': 'polite' });
+  const check = h('button', { type: 'button', class: 'ghost' }, 'Check the count on both engines');
+  host.append(h('div', { class: 'controls' }, sel, seg), svgWrap, stat, h('div', { class: 'checkrow' }, sqlLine, check), out);
+  sel.addEventListener('change', () => { scen = sel.value; draw(); });
+  check.addEventListener('click', async () => {
+    const q = JOIN_SCEN[scen].sql(jt); out.textContent = 'Running';
+    const [a, b] = await Promise.all([run('pg', q), run('sq', q)]);
+    out.innerHTML = `<span class="tag pg">Postgres</span>${a.ok ? esc(a.rows[0][0]) : 'error: ' + esc(a.msg)}<span class="tag sq">SQLite</span>${b.ok ? esc(b.rows[0][0]) : 'error: ' + esc(b.msg)}`;
+  });
+  function draw() {
+    $$('button', seg).forEach(b => b.setAttribute('aria-pressed', String(b.dataset.t === jt)));
+    const S = JOIN_SCEN[scen], L = S.L.rows, R = S.R.rows, cross = jt === 'CROSS JOIN';
+    const pairs = [];
+    L.forEach((l, i) => R.forEach((r, j) => { const a = S.L.key(l), b = S.R.key(r); if (cross || (a !== null && b !== null && a === b)) pairs.push([i, j]); }));
+    const lHit = new Set(pairs.map(p => p[0])), rHit = new Set(pairs.map(p => p[1]));
+    const keepL = (jt === 'LEFT JOIN' || jt === 'FULL JOIN') ? L.map((_, i) => i).filter(i => !lHit.has(i)) : [];
+    const keepR = (jt === 'RIGHT JOIN' || jt === 'FULL JOIN') ? R.map((_, j) => j).filter(j => !rHit.has(j)) : [];
+    const total = pairs.length + keepL.length + keepR.length;
+    const rh = 30, y0 = 46, n = Math.max(L.length, R.length), H = y0 + n * rh + 8, y = i => y0 + i * rh + rh / 2;
+    let s = `<svg viewBox="0 0 640 ${H}" role="img" aria-label="${esc(jt)} produces ${total} rows">`;
+    s += `<text class="jh" x="113" y="24">${esc(S.L.name)}</text><text class="jh" x="527" y="24">${esc(S.R.name)}</text>`;
+    for (const [i, j] of pairs) s += `<path class="jl" data-l="${i}" data-r="${j}" d="M218 ${y(i)}C320 ${y(i)} 320 ${y(j)} 422 ${y(j)}"/>`;
+    for (const i of keepL) s += `<path class="jl pad" data-l="${i}" d="M218 ${y(i)}H258"/><text class="padt" x="264" y="${y(i) + 4}">kept, right side NULL</text>`;
+    for (const j of keepR) s += `<path class="jl pad" data-r="${j}" d="M382 ${y(j)}H422"/><text class="padt" x="376" y="${y(j) + 4}" text-anchor="end">kept, left side NULL</text>`;
+    const box = (side, i, row, x, hit, kept, key) => `<g class="jr ${hit ? 'hit' : kept ? 'kept' : 'miss'}${key === null && !cross ? ' nullk' : ''}" data-side="${side}" data-i="${i}" tabindex="0" role="button" aria-label="${esc(row)}"><rect x="${x}" y="${y(i) - 12}" width="210" height="24" rx="5"/><text x="${x + 105}" y="${y(i) + 4}">${esc(row)}</text></g>`;
+    L.forEach((l, i) => { s += box('l', i, S.L.show(l), 8, lHit.has(i), keepL.includes(i), S.L.key(l)); });
+    R.forEach((r, j) => { s += box('r', j, S.R.show(r), 422, rHit.has(j), keepR.includes(j), S.R.key(r)); });
+    svgWrap.innerHTML = s + '</svg>';
+    const lines = [];
+    if (cross) lines.push(`${L.length} × ${R.length} = ${pairs.length}: every row paired with every row, no condition.`);
+    else {
+      const cnt = new Map();
+      L.forEach(l => { const k = S.L.key(l); if (k !== null) { const e = cnt.get(k) || [0, 0]; e[0]++; cnt.set(k, e); } });
+      R.forEach(r => { const k = S.R.key(r); if (k !== null) { const e = cnt.get(k) || [0, 0]; e[1]++; cnt.set(k, e); } });
+      const terms = [...cnt].filter(([, [a, b]]) => a && b).map(([k, [a, b]]) => `${esc(k)}: ${a}×${b}`);
+      lines.push(`${pairs.length} matched pairs = ${terms.join(' + ') || 'none'}`);
+      if (keepL.length) lines.push(`+ ${keepL.length} unmatched left row${keepL.length > 1 ? 's' : ''} kept by the ${jt.split(' ')[0]} JOIN`);
+      if (keepR.length) lines.push(`+ ${keepR.length} unmatched right row${keepR.length > 1 ? 's' : ''} kept by the ${jt.split(' ')[0]} JOIN`);
+      lines.push('<span class="muted">Dashed boxes have a NULL key: it never matches, not even another NULL.</span>');
+    }
+    stat.innerHTML = `<div class="big">${total}</div><div class="what">${lines.map(l => `<div>${l}</div>`).join('')}</div>`;
+    sqlLine.textContent = S.sql(jt); out.textContent = '';
+    $$('.jr', svgWrap).forEach(g => {
+      const on = () => { const side = g.dataset.side, idx = g.dataset.i; svgWrap.classList.add('focus'); $$('.jl', svgWrap).forEach(p => p.classList.toggle('lit', p.dataset[side] === idx)); g.classList.add('lit'); };
+      const off = () => { svgWrap.classList.remove('focus'); $$('.lit', svgWrap).forEach(x => x.classList.remove('lit')); };
+      g.addEventListener('mouseenter', on); g.addEventListener('mouseleave', off); g.addEventListener('focus', on); g.addEventListener('blur', off);
+    });
+  }
+  draw();
+}
+
+/* ---------- anti-join explorer ---------- */
+function makeAnti(host) {
+  host.classList.add('explorer');
+  let method = 'notin', filt = false, shown = SESSION.length;
+  const METHODS = { notin: 'NOT IN', notexists: 'NOT EXISTS', leftjoin: 'LEFT JOIN ... IS NULL', in: 'IN' };
+  const seg = h('div', { class: 'seg', role: 'group', 'aria-label': 'Method' });
+  Object.entries(METHODS).forEach(([k, v]) => seg.append(h('button', { type: 'button', 'data-m': k, onclick: () => { method = k; shown = SESSION.length; draw(); } }, v)));
+  const cb = h('input', { type: 'checkbox' });
+  cb.addEventListener('change', () => { filt = cb.checked; shown = SESSION.length; draw(); });
+  const stepBtn = h('button', { type: 'button', class: 'ghost', onclick: () => { if (shown >= SESSION.length) shown = 0; shown++; draw(true); } }, 'Replay row by row');
+  const tableWrap = h('div', { class: 'tablewrap' }), total = h('div', { class: 'total', 'aria-live': 'polite' });
+  const sqlLine = h('pre', { class: 'sqlline' }), out = h('div', { class: 'checkout', 'aria-live': 'polite' });
+  const check = h('button', { type: 'button', class: 'ghost' }, 'Check on both engines');
+  host.append(h('div', { class: 'controls' }, seg, h('label', {}, cb, 'Add WHERE sid IS NOT NULL inside the subquery'), stepBtn), tableWrap, total, h('div', { class: 'checkrow' }, sqlLine, check), out);
+  check.addEventListener('click', async () => {
+    const q = sqlFor(); out.textContent = 'Running';
+    const [a, b] = await Promise.all([run('pg', q), run('sq', q)]);
+    out.innerHTML = `<span class="tag pg">Postgres</span>${a.ok ? esc(a.rows[0][0]) : 'error: ' + esc(a.msg)}<span class="tag sq">SQLite</span>${b.ok ? esc(b.rows[0][0]) : 'error: ' + esc(b.msg)}`;
+  });
+  function sqlFor() {
+    const sub = `SELECT sid FROM message${filt ? ' WHERE sid IS NOT NULL' : ''}`;
+    if (method === 'notin') return `SELECT count(*) FROM session WHERE sid NOT IN (${sub});`;
+    if (method === 'in') return `SELECT count(*) FROM session WHERE sid IN (${sub});`;
+    if (method === 'notexists') return `SELECT count(*) FROM session s WHERE NOT EXISTS (SELECT 1 FROM message m WHERE m.sid = s.sid${filt ? ' AND m.sid IS NOT NULL' : ''});`;
+    return `SELECT count(*) FROM session LEFT JOIN message USING (sid) WHERE message.mid IS NULL;`;
+  }
+  function evaluate(x) {
+    const vals = MESSAGE.map(m => m[2]).filter(v => !filt || v !== null);
+    if (method === 'notin' || method === 'in') {
+      const neg = method === 'notin', hasNull = vals.includes(null), set = new Set(vals.filter(v => v !== null));
+      if (!vals.length) return { res: neg ? 'TRUE' : 'FALSE', kept: neg, why: 'The list is empty.' };
+      if (x === null) return { res: 'NULL', kept: false, why: 'NULL compared with any value is NULL.' };
+      if (set.has(x)) return { res: neg ? 'FALSE' : 'TRUE', kept: !neg, why: `${x} = ${x} is TRUE, so ${neg ? 'NOT IN is FALSE' : 'IN is TRUE'}.` };
+      if (hasNull) return { res: 'NULL', kept: false, why: neg ? `${x} differs from every value, but ${x} <> NULL is NULL, and TRUE AND NULL is NULL.` : `No value equals ${x}, but ${x} = NULL is NULL, and FALSE OR NULL is NULL.` };
+      return { res: neg ? 'TRUE' : 'FALSE', kept: neg, why: `${x} differs from every value in the list.` };
+    }
+    const m = x === null ? 0 : MESSAGE.filter(r => r[2] === x).length;
+    if (method === 'leftjoin') return m ? { res: `${m} match${m > 1 ? 'es' : ''}`, kept: false, why: 'message.mid is filled in, so IS NULL is FALSE.' }
+      : { res: 'no match', kept: true, why: x === null ? 'sid = NULL is never TRUE, so the row is padded with NULLs and mid IS NULL.' : 'The row is padded with NULLs, so mid IS NULL is TRUE.' };
+    return m ? { res: `${m} found`, kept: false, why: 'EXISTS finds a row, so NOT EXISTS is FALSE.' }
+      : { res: 'none found', kept: true, why: x === null ? 'm.sid = NULL is never TRUE, so nothing is found.' : 'Nothing is found, so NOT EXISTS is TRUE.' };
+  }
+  function draw(fresh) {
+    $$('button', seg).forEach(b => b.setAttribute('aria-pressed', String(b.dataset.m === method)));
+    cb.disabled = method === 'leftjoin';
+    const rows = SESSION.map(r => ({ r, e: evaluate(r[0]) }));
+    tableWrap.innerHTML = `<table class="eval"><thead><tr><th>session row</th><th>evaluates to</th><th>why</th><th></th></tr></thead><tbody>${rows.slice(0, shown).map((x, i) => `<tr class="${fresh && i === shown - 1 ? 'fresh' : ''}"><td class="row">${cellHTML(x.r[0])}, ${esc(x.r[1])}</td><td class="res">${x.e.res === 'NULL' ? '<span class="null">NULL</span>' : esc(x.e.res)}</td><td>${esc(x.e.why)}</td><td><span class="chip ${x.e.kept ? 'kept' : 'dropped'}">${x.e.kept ? 'kept' : 'dropped'}</span></td></tr>`).join('')}</tbody></table>`;
+    const kept = rows.filter(x => x.e.kept).length;
+    total.innerHTML = shown >= SESSION.length ? `<b>${kept}</b><span>sessions returned by ${METHODS[method]}${method === 'notin' && !filt ? ', because message.sid contains NULL' : ''}</span>` : `<span class="muted">${shown} of ${SESSION.length} rows checked. Press Replay again for the next row.</span>`;
+    stepBtn.textContent = shown >= SESSION.length ? 'Replay row by row' : 'Next row';
+    sqlLine.textContent = sqlFor(); out.textContent = '';
+  }
+  draw();
+}
+
+/* ---------- recursive CTE explorer ---------- */
+const TPOS = { 10: [200, 0], 11: [200, 1], 12: [70, 2], 13: [200, 2], 27: [330, 2], 14: [70, 3], 17: [170, 3], 24: [250, 3], 28: [330, 3], 25: [250, 4],
+  15: [470, 0], 16: [470, 1], 18: [470, 2], 23: [430, 3], 26: [520, 3], 19: [600, 0], 20: [600, 1], 21: [600, 2], 22: [600, 3] };
+function recRounds(seed, dir, mode) {
+  const M = MESSAGE.map(r => ({ mid: r[0], prev: r[1] })), key = r => r.mid + '|' + r.prev;
+  let work = M.filter(r => r.mid === seed).map(r => ({ ...r }));
+  const seen = new Set();
+  if (mode === 'UNION') { work = work.filter(r => { const k = key(r); if (seen.has(k)) return false; seen.add(k); return true; }); }
+  const rounds = [{ n: 0, rows: work, from: 0 }];
+  for (let g = 0; g < 40 && work.length; g++) {
+    let next = [];
+    for (const w of work) for (const m of M) {
+      if (dir === 'up' ? (w.prev !== null && m.mid === w.prev) : (m.prev !== null && m.prev === w.mid)) next.push({ ...m });
+    }
+    if (mode === 'UNION') next = next.filter(r => { const k = key(r); if (seen.has(k)) return false; seen.add(k); return true; });
+    rounds.push({ n: rounds.length, rows: next, from: work.length });
+    if (!next.length) break;
+    work = next;
+  }
+  return rounds;
+}
+function makeRec(host) {
+  host.classList.add('explorer');
+  let seed = 25, dir = 'up', mode = 'UNION ALL', upto = 0;
+  const mids = [...new Set(MESSAGE.map(r => r[0]))].sort((a, b) => a - b);
+  const sel = h('select', { 'aria-label': 'Seed message' }, ...mids.map(m => h('option', { value: m, selected: m === seed }, `seed: mid = ${m}`)));
+  const dseg = h('div', { class: 'seg', role: 'group', 'aria-label': 'Direction' });
+  [['up', 'Walk up to the root'], ['down', 'Walk down to replies']].forEach(([k, v]) => dseg.append(h('button', { type: 'button', 'data-d': k, onclick: () => { dir = k; upto = 0; draw(); } }, v)));
+  const mseg = h('div', { class: 'seg', role: 'group', 'aria-label': 'Set operation' });
+  ['UNION ALL', 'UNION'].forEach(k => mseg.append(h('button', { type: 'button', 'data-k': k, onclick: () => { mode = k; upto = 0; draw(); } }, k)));
+  const nextBtn = h('button', { type: 'button', class: 'btn' }, 'Next round');
+  const allBtn = h('button', { type: 'button', class: 'ghost' }, 'Run to the end');
+  const resetBtn = h('button', { type: 'button', class: 'ghost' }, 'Start over');
+  const svgWrap = h('div', { class: 'treesvg' }), log = h('ol', { class: 'roundlog', start: '0' }), side = h('div', {});
+  const sqlLine = h('pre', { class: 'sqlline' }), out = h('div', { class: 'checkout', 'aria-live': 'polite' });
+  const check = h('button', { type: 'button', class: 'ghost' }, 'Check the count on both engines');
+  host.append(h('div', { class: 'controls' }, sel, dseg, mseg), h('div', { class: 'controls' }, nextBtn, allBtn, resetBtn),
+    h('div', { class: 'recgrid' }, svgWrap, side), h('div', { class: 'checkrow' }, sqlLine, check), out);
+  sel.addEventListener('change', () => { seed = +sel.value; upto = 0; draw(); });
+  nextBtn.addEventListener('click', () => { upto++; draw(); });
+  allBtn.addEventListener('click', () => { upto = 99; draw(); });
+  resetBtn.addEventListener('click', () => { upto = 0; draw(); });
+  check.addEventListener('click', async () => {
+    const q = sqlFor(); out.textContent = 'Running';
+    const [a, b] = await Promise.all([run('pg', q), run('sq', q)]);
+    out.innerHTML = `<span class="tag pg">Postgres</span>${a.ok ? esc(a.rows[0][0]) : 'error: ' + esc(a.msg)}<span class="tag sq">SQLite</span>${b.ok ? esc(b.rows[0][0]) : 'error: ' + esc(b.msg)}`;
+  });
+  function sqlFor() {
+    return `WITH RECURSIVE history AS (\n    SELECT mid, prev_mid FROM message WHERE mid = ${seed}\n  ${mode}\n    SELECT m.mid, m.prev_mid\n    FROM message m JOIN history h ON ${dir === 'up' ? 'm.mid = h.prev_mid' : 'm.prev_mid = h.mid'}\n)\nSELECT count(*) FROM history;`;
+  }
+  function draw() {
+    $$('button', dseg).forEach(b => b.setAttribute('aria-pressed', String(b.dataset.d === dir)));
+    $$('button', mseg).forEach(b => b.setAttribute('aria-pressed', String(b.dataset.k === mode)));
+    const rounds = recRounds(seed, dir, mode), last = rounds.length - 1;
+    upto = Math.min(upto, last);
+    const shownRounds = rounds.slice(0, upto + 1), roundOf = new Map(), count = new Map();
+    for (const rd of shownRounds) for (const r of rd.rows) { if (!roundOf.has(r.mid)) roundOf.set(r.mid, rd.n); count.set(r.mid, (count.get(r.mid) || 0) + 1); }
+    const yv = L => 36 + L * 64;
+    let s = `<svg viewBox="20 0 624 330" role="img" aria-label="Message tree; highlighted nodes are in the CTE result">`;
+    const edges = new Set();
+    for (const r of MESSAGE) if (r[1] !== null) edges.add(r[0] + '-' + r[1]);
+    for (const e of edges) {
+      const [c, p] = e.split('-').map(Number), [cx, cl] = TPOS[c], [px, pl] = TPOS[p];
+      const on = roundOf.has(c) && roundOf.has(p);
+      s += `<path class="tedge${on ? ' r' : ''}" d="M${cx} ${yv(cl) - 15}C${cx} ${yv(cl) - 38} ${px} ${yv(pl) + 38} ${px} ${yv(pl) + 15}"/>`;
+    }
+    for (const [mid, [x, L]] of Object.entries(TPOS)) {
+      const m = +mid, inR = roundOf.has(m), dup = MESSAGE.filter(r => r[0] === m).length > 1;
+      s += `<g class="tnode${inR ? ' r' : ''}${m === seed ? ' seed' : ''}"><rect x="${x - 32}" y="${yv(L) - 15}" width="64" height="30" rx="7"/><text x="${x}" y="${yv(L) + 4}">${m}${dup ? ' ×2' : ''}</text>${inR ? `<text class="rb" x="${x + 26}" y="${yv(L) - 19}">r${roundOf.get(m)}${count.get(m) > 1 ? ' ×' + count.get(m) : ''}</text>` : ''}</g>`;
+    }
+    svgWrap.innerHTML = s + '</svg>';
+    const total = shownRounds.reduce((a, r) => a + r.rows.length, 0);
+    log.innerHTML = shownRounds.map(rd => rd.n === 0 ? `<li>Seed: <code>WHERE mid = ${seed}</code> gives ${rd.rows.length} row${rd.rows.length === 1 ? '' : 's'}${rd.rows.length > 1 ? ' (duplicates in the table)' : ''}.</li>`
+      : rd.rows.length ? `<li>Join ${rd.from} working row${rd.from === 1 ? '' : 's'} to message: ${rd.rows.length} new row${rd.rows.length === 1 ? '' : 's'} (mid ${rd.rows.map(r => r.mid).join(', ')}).</li>`
+        : `<li>Join ${rd.from} working row${rd.from === 1 ? '' : 's'}: nothing new, so the recursion stops.</li>`).join('');
+    const done = upto >= last;
+    side.innerHTML = '';
+    side.append(h('div', { class: 'total' }, h('b', {}, String(total)), h('span', {}, done ? `row${total === 1 ? '' : 's'} in the CTE: the final count(*)` : `row${total === 1 ? '' : 's'} so far (round ${upto} of ${last})`)), log);
+    nextBtn.disabled = done; allBtn.disabled = done;
+    sqlLine.textContent = sqlFor(); out.textContent = '';
+  }
+  draw();
+}
+
+/* ---------- byte calculator ---------- */
+const PGT = { smallint: [2, 2], integer: [4, 4], bigint: [8, 8], boolean: [1, 1], real: [4, 4], 'double precision': [8, 8], date: [4, 4], timestamptz: [8, 8], uuid: [16, 1], line: [24, 8], text: [-1, 4], char: [-1, 4], jsonb: [-1, 4] };
+const isNullTok = v => /^\s*(null)?\s*$/i.test(v);
+const unq = v => { const m = String(v).trim().match(/^'([\s\S]*)'$/); return m ? m[1].replace(/''/g, "'") : String(v).trim(); };
+const utf8 = s => new TextEncoder().encode(s).length;
+const up = (n, a) => Math.ceil(n / a) * a;
+function pgLayout(cols) {
+  const n = cols.length, anyNull = cols.some(c => isNullTok(c.val));
+  const bitmap = anyNull ? Math.ceil(n / 8) : 0, hdrRaw = 23 + bitmap, hdr = up(hdrRaw, 8);
+  let off = 0; const segs = []; let unknown = false;
+  for (const c of cols) {
+    if (isNullTok(c.val)) { segs.push({ kind: 'null', c }); continue; }
+    const [len, al] = PGT[c.type];
+    let size, a, why;
+    if (len > 0) { size = len; a = al; why = `${len} bytes, starts at a multiple of ${al}`; }
+    else if (c.type === 'jsonb') { unknown = true; segs.push({ kind: 'unknown', c }); continue; }
+    else { const b = utf8(unq(c.val)); if (b <= 126) { size = 1 + b; a = 1; why = `short varlena: 1-byte header + ${b}, no alignment`; } else { size = 4 + b; a = 4; why = `4-byte header + ${b}`; } }
+    const start = up(off, a);
+    if (start > off) segs.push({ kind: 'pad', start: off, end: start });
+    segs.push({ kind: 'col', c, start, end: start + size, why }); off = start + size;
+  }
+  const total = hdr + off, disk = up(total, 8);
+  return { n, anyNull, bitmap, hdrRaw, hdr, data: off, total, disk, segs, unknown };
+}
+function sqAffinity(t) {
+  const u = t.toUpperCase();
+  if (u.includes('INT')) return 'INTEGER';
+  if (/CHAR|CLOB|TEXT/.test(u)) return 'TEXT';
+  if (u.includes('BLOB') || u === '') return 'BLOB';
+  if (/REAL|FLOA|DOUB/.test(u)) return 'REAL';
+  return 'NUMERIC';
+}
+function sqParse(tok) {
+  const t = String(tok).trim();
+  if (isNullTok(t)) return { k: 'null' };
+  const q = t.match(/^'([\s\S]*)'$/); if (q) return { k: 'text', v: q[1].replace(/''/g, "'") };
+  if (/^(true|false)$/i.test(t)) return { k: 'int', v: /^true$/i.test(t) ? 1 : 0 };
+  if (/^[+-]?\d+$/.test(t)) return { k: 'int', v: Number(t) };
+  if (/^[+-]?(\d+\.\d*|\.\d+|\d+)([eE][+-]?\d+)?$/.test(t)) return { k: 'real', v: Number(t) };
+  return { k: 'text', v: t };
+}
+const realText = r => Number.isInteger(r) ? r.toFixed(1) : String(r);
+const numericLooking = s => /^\s*[+-]?(\d+\.?\d*|\.\d+)([eE][+-]?\d+)?\s*$/.test(s);
+function sqStore(val, aff) {
+  if (val.k === 'null') return val;
+  if (aff === 'TEXT') { if (val.k === 'int') return { k: 'text', v: String(val.v) }; if (val.k === 'real') return { k: 'text', v: realText(val.v) }; return val; }
+  if (aff === 'INTEGER' || aff === 'NUMERIC') {
+    if (val.k === 'text' && numericLooking(val.v)) { const n = Number(val.v); return Number.isInteger(n) && Math.abs(n) < 2 ** 53 ? { k: 'int', v: n } : { k: 'real', v: n }; }
+    if (val.k === 'real' && Number.isInteger(val.v) && Math.abs(val.v) < 2 ** 53) return { k: 'int', v: val.v };
+    return val;
+  }
+  if (aff === 'REAL') {
+    if (val.k === 'int') return { k: 'real', v: val.v };
+    if (val.k === 'text' && numericLooking(val.v)) return { k: 'real', v: Number(val.v) };
+    return val;
+  }
+  return val;
+}
+function intSize(i) { if (i === 0) return [8, 0]; if (i === 1) return [9, 0]; const a = i < 0 ? -i - 1 : i; if (a <= 127) return [1, 1]; if (a <= 32767) return [2, 2]; if (a <= 8388607) return [3, 3]; if (a <= 2147483647) return [4, 4]; if (a <= 140737488355327) return [5, 6]; return [6, 8]; }
+const vlen = x => x < 128 ? 1 : x < 16384 ? 2 : x < 2097152 ? 3 : 4;
+function sqLayout(cols) {
+  const parts = cols.map(c => {
+    const aff = sqAffinity(c.type), st = sqStore(sqParse(c.val), aff);
+    let serial, body, as;
+    if (st.k === 'null') { serial = 0; body = 0; as = 'NULL'; }
+    else if (st.k === 'int') { [serial, body] = intSize(st.v); as = `integer ${st.v}`; }
+    else if (st.k === 'real') {
+      if (aff === 'REAL' && Number.isInteger(st.v) && Math.abs(st.v) < 2 ** 53) { [serial, body] = intSize(st.v); as = `real ${realText(st.v)}, saved as an integer`; }
+      else { serial = 7; body = 8; as = `real ${st.v}`; }
+    } else { const b = utf8(st.v); serial = 2 * b + 13; body = b; as = `text '${st.v}'`; }
+    return { c, aff, as, serial, hb: vlen(serial), body };
+  });
+  const typesBytes = parts.reduce((a, p) => a + p.hb, 0);
+  let hsz = typesBytes + 1; while (vlen(hsz) + typesBytes !== hsz) hsz = vlen(hsz) + typesBytes;
+  const bodyTotal = parts.reduce((a, p) => a + p.body, 0);
+  return { parts, header: hsz, sizeByte: hsz - typesBytes, body: bodyTotal, total: hsz + bodyTotal };
+}
+const BYTE_PRESETS = {
+  his: { label: 'His quiz_notes_3 example', cols: [['id', 'bigint', '0'], ['a', 'char', "'a'"], ['b', 'integer', '0'], ['c', 'smallint', '0'], ['d', 'line', "'{1, 2, 3}'"], ['e', 'jsonb', 'NULL']] },
+  bad: { label: 'Bad order: small column first', cols: [['a', 'smallint', '1'], ['b', 'bigint', '2'], ['c', 'integer', '3'], ['d', 'boolean', 'true'], ['e', 'bigint', '5']] },
+  good: { label: 'Same columns, largest first', cols: [['b', 'bigint', '2'], ['e', 'bigint', '5'], ['c', 'integer', '3'], ['a', 'smallint', '1'], ['d', 'boolean', 'true']] },
+  nulls: { label: 'Row with NULLs', cols: [['a', 'bigint', '1'], ['b', 'integer', 'NULL'], ['c', 'smallint', '1'], ['d', 'bigint', 'NULL']] },
+  nine: { label: '9 columns and one NULL', cols: ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i'].map((n, i) => [n, 'integer', i === 8 ? 'NULL' : '1']) },
+  sqlite: { label: 'SQLite storage classes', cols: [['a', 'integer', '100000'], ['b', 'real', '2.5'], ['c', 'real', '3.0'], ['d', 'integer', '-1'], ['e', 'text', "''"]] },
+};
+function makeBytes(host) {
+  host.classList.add('explorer');
+  let cols = BYTE_PRESETS.his.cols.map(([name, type, val]) => ({ name, type, val }));
+  const presetSel = h('select', { 'aria-label': 'Example table' }, ...Object.entries(BYTE_PRESETS).map(([k, p]) => h('option', { value: k }, p.label)));
+  const sortBtn = h('button', { type: 'button', class: 'ghost' }, 'Sort largest alignment first');
+  const addBtn = h('button', { type: 'button', class: 'ghost' }, 'Add column');
+  const rowsEl = h('div', { class: 'colrows' }), outEl = h('div', { class: 'bytes-out', 'aria-live': 'polite' });
+  const sqlLine = h('pre', { class: 'sqlline' }), out = h('div', { class: 'checkout', 'aria-live': 'polite' });
+  const check = h('button', { type: 'button', class: 'ghost' }, 'Check in real Postgres');
+  host.append(h('div', { class: 'controls' }, presetSel, sortBtn, addBtn),
+    h('div', { class: 'colhead' }, h('span', {}, 'column'), h('span', {}, 'type'), h('span', {}, 'value in the INSERT (NULL, 5, true, \'text\')'), h('span', {}, '')),
+    rowsEl, outEl, h('div', { class: 'checkrow' }, sqlLine, check), out);
+  presetSel.addEventListener('change', () => { cols = BYTE_PRESETS[presetSel.value].cols.map(([name, type, val]) => ({ name, type, val })); drawRows(); drawOut(); });
+  sortBtn.addEventListener('click', () => {
+    const rank = c => { const [len, al] = PGT[c.type]; return len < 0 ? -1 : al * 100 + len; };
+    cols = cols.map((c, i) => ({ c, i })).sort((a, b) => rank(b.c) - rank(a.c) || a.i - b.i).map(x => x.c); drawRows(); drawOut();
+  });
+  addBtn.addEventListener('click', () => { cols.push({ name: 'c' + (cols.length + 1), type: 'integer', val: '0' }); drawRows(); drawOut(); });
+  check.addEventListener('click', async () => {
+    out.textContent = 'Running';
+    const r = await run('pg', pgSql() + '\nSELECT pg_column_size(t.*) AS pg_column_size FROM _bytes t;');
+    const lay = pgLayout(cols);
+    out.innerHTML = r.ok ? `<span class="tag pg">Postgres</span>pg_column_size = ${esc(r.rows[0][0])}. This calculator says ${lay.total}${lay.unknown ? ' (plus the jsonb value it can\'t size)' : ''}.` : `<span class="tag pg">Postgres</span>error: ${esc(r.msg)}`;
+  });
+  const pgName = t => t === 'char' ? 'CHAR' : t.toUpperCase();
+  function pgSql() {
+    return `DROP TABLE IF EXISTS _bytes;\nCREATE TABLE _bytes (${cols.map(c => `${c.name} ${pgName(c.type)}`).join(', ')});\nINSERT INTO _bytes VALUES (${cols.map(c => isNullTok(c.val) ? 'NULL' : c.val.trim()).join(', ')});`;
+  }
+  function drawRows() {
+    rowsEl.innerHTML = '';
+    cols.forEach((c, i) => {
+      const name = h('input', { type: 'text', value: c.name, 'aria-label': `Column ${i + 1} name` });
+      const type = h('select', { 'aria-label': `Column ${c.name} type` }, ...Object.keys(PGT).map(t => h('option', { value: t, selected: t === c.type }, t)));
+      const val = h('input', { type: 'text', class: 'val', value: c.val, 'aria-label': `Column ${c.name} value` });
+      name.addEventListener('input', () => { c.name = name.value.replace(/[^A-Za-z0-9_]/g, '') || 'c'; drawOut(); });
+      type.addEventListener('change', () => { c.type = type.value; drawOut(); });
+      val.addEventListener('input', () => { c.val = val.value; drawOut(); });
+      const mv = d => { const j = i + d; if (j < 0 || j >= cols.length) return; [cols[i], cols[j]] = [cols[j], cols[i]]; drawRows(); drawOut(); };
+      rowsEl.append(h('div', { class: 'colrow' }, name, type, val, h('div', { class: 'acts' },
+        h('button', { type: 'button', 'aria-label': `Move ${c.name} up`, onclick: () => mv(-1) }, '↑'),
+        h('button', { type: 'button', 'aria-label': `Move ${c.name} down`, onclick: () => mv(1) }, '↓'),
+        h('button', { type: 'button', 'aria-label': `Remove ${c.name}`, onclick: () => { if (cols.length > 1) { cols.splice(i, 1); drawRows(); drawOut(); } } }, '×'))));
+    });
+  }
+  function drawOut() {
+    const p = pgLayout(cols), s = sqLayout(cols);
+    const seg = (cls, bytes, label, title) => `<div class="${cls}" style="flex:${bytes} 0 0;--bw:${100 / Math.max(bytes, 1)}%" title="${esc(title)}">${bytes >= 3 ? esc(label) : ''}</div>`;
+    let bar = seg('hdr', p.hdr, `header ${p.hdr}`, `header: 23 bytes${p.bitmap ? ` + ${p.bitmap}-byte null bitmap` : ''}, padded to ${p.hdr}`);
+    const rowsT = [`<tr><td>header</td><td></td><td>0</td><td>${p.hdr}</td><td class="why">23${p.bitmap ? ` + ${p.bitmap} null bitmap (${p.n} column${p.n > 1 ? 's' : ''}, 1 bit each, rounded up)` : ' (no NULL, so no bitmap)'} = ${p.hdrRaw}, padded to a multiple of 8</td></tr>`];
+    for (const sg of p.segs) {
+      if (sg.kind === 'pad') { bar += seg('pad', sg.end - sg.start, `pad ${sg.end - sg.start}`, `${sg.end - sg.start} bytes of padding`); rowsT.push(`<tr class="padrow"><td>padding</td><td></td><td>${p.hdr + sg.start}</td><td>${p.hdr + sg.end}</td><td class="why">wasted so the next column starts aligned</td></tr>`); }
+      else if (sg.kind === 'col') { bar += seg('col', sg.end - sg.start, sg.c.name, `${sg.c.name} ${sg.c.type}: bytes ${p.hdr + sg.start} to ${p.hdr + sg.end}`); rowsT.push(`<tr><td>${esc(sg.c.name)}</td><td>${esc(sg.c.type)}</td><td>${p.hdr + sg.start}</td><td>${p.hdr + sg.end}</td><td class="why">${esc(sg.why)}</td></tr>`); }
+      else if (sg.kind === 'null') rowsT.push(`<tr><td>${esc(sg.c.name)}</td><td>${esc(sg.c.type)}</td><td colspan="2"><span class="null">NULL</span></td><td class="why">0 bytes; only its bit in the bitmap</td></tr>`);
+      else rowsT.push(`<tr><td>${esc(sg.c.name)}</td><td>${esc(sg.c.type)}</td><td colspan="2">?</td><td class="why">jsonb values aren't on the quiz; set this to NULL</td></tr>`);
+    }
+    if (p.disk > p.total) { bar += seg('pad', p.disk - p.total, `pad ${p.disk - p.total}`, 'tail padding to a multiple of 8'); rowsT.push(`<tr class="padrow"><td>tail padding</td><td></td><td>${p.total}</td><td>${p.disk}</td><td class="why">the whole row is rounded up to a multiple of 8</td></tr>`); }
+    let sbar = seg('sqh', s.header, `header ${s.header}`, `header: ${s.sizeByte} byte for its length + 1 type code per column`);
+    for (const pt of s.parts) if (pt.body) sbar += seg('col', pt.body, pt.c.name, `${pt.c.name}: ${pt.body} bytes`);
+    outEl.innerHTML = `<div class="engine-box pg"><h4>Postgres</h4><p class="sizeline"><b>${p.disk}</b> bytes on disk${p.unknown ? ' plus the jsonb value' : ''}. pg_column_size reports ${p.total}${p.disk > p.total ? ` (before the final ${p.disk - p.total}-byte pad)` : ''}.</p><div class="bar">${bar}</div><div class="ruler"><span>0</span><span>${p.disk} bytes</span></div><div class="tablewrap"><table class="layout"><thead><tr><th>part</th><th>type</th><th>from</th><th>to</th><th>why</th></tr></thead><tbody>${rowsT.join('')}</tbody></table></div></div>
+      <div class="engine-box sq"><h4>SQLite</h4><p class="sizeline"><b>${s.total}</b> bytes: header ${s.header} + body ${s.body}, never any padding.</p><div class="bar sqbar">${sbar}</div><div class="ruler"><span>0</span><span>${s.total} bytes</span></div><div class="tablewrap"><table class="layout"><thead><tr><th>column</th><th>affinity</th><th>stored as</th><th>header</th><th>body</th></tr></thead><tbody>${s.parts.map(pt => `<tr><td>${esc(pt.c.name)}</td><td>${pt.aff}</td><td>${esc(pt.as)}</td><td>${pt.hb}</td><td>${pt.body}</td></tr>`).join('')}<tr><td colspan="3" class="why">plus ${s.sizeByte} byte for the header's own length</td><td>${s.sizeByte}</td><td></td></tr></tbody></table></div></div>`;
+    sqlLine.textContent = pgSql(); out.textContent = '';
+  }
+  drawRows(); drawOut();
+}
+window.__bytes = { pgLayout, sqLayout };
+
+/* ---------- window playground ---------- */
+const WINDOW_PRESETS = [
+  ['Running sum, default RANGE frame', 'SELECT id, fruit_a, sum(id) OVER (ORDER BY id)\nFROM basket_a\nORDER BY id;'],
+  ['Running sum, ROWS frame', 'SELECT id, fruit_a, sum(id) OVER (ORDER BY id ROWS UNBOUNDED PRECEDING)\nFROM basket_a\nORDER BY id;'],
+  ['Whole-table frame: OVER ()', 'SELECT id, fruit_a, sum(id) OVER (), count(*) OVER ()\nFROM basket_a\nORDER BY id;'],
+  ['PARTITION BY fruit_a', 'SELECT id, fruit_a, sum(id) OVER (PARTITION BY fruit_a)\nFROM basket_a\nORDER BY fruit_a;'],
+  ['row_number, rank, dense_rank', 'SELECT id,\n       row_number() OVER (ORDER BY id),\n       rank()       OVER (ORDER BY id),\n       dense_rank() OVER (ORDER BY id)\nFROM basket_a\nORDER BY id;'],
+  ['lag and lead (his Problem 4)', 'SELECT id, lag(id) OVER (ORDER BY id), lead(id) OVER (ORDER BY id)\nFROM basket_a\nORDER BY id;'],
+  ['first_value and last_value', 'SELECT id, first_value(id) OVER (ORDER BY id), last_value(id) OVER (ORDER BY id)\nFROM basket_a\nORDER BY id;'],
+  ['Sliding frame: 1 before, 1 after', 'SELECT id, sum(id) OVER (ORDER BY id ROWS BETWEEN 1 PRECEDING AND 1 FOLLOWING)\nFROM basket_a\nORDER BY id;'],
+  ['Partitioned ranking', 'SELECT id, fruit_a, rank() OVER (PARTITION BY fruit_a ORDER BY id)\nFROM basket_a\nORDER BY fruit_a, id;'],
+];
+function makeWindow(host) {
+  const sel = h('select', { 'aria-label': 'Window function example' }, ...WINDOW_PRESETS.map(([label], i) => h('option', { value: i }, label)));
+  const r = h('div', {});
+  host.append(h('div', { class: 'controls' }, h('label', {}, 'Example', sel)), r);
+  makeRunner(r, WINDOW_PRESETS[0][1]); lazy.observe(r);
+  sel.addEventListener('change', () => r._set(WINDOW_PRESETS[+sel.value][1]));
+}
+
+/* ---------- practice tracker ---------- */
+const DL = 'https://datalemur.com/questions/', LC = 'https://leetcode.com/problems/';
+const PRACTICE = [
+  ['1', 'DataLemur', 'Unfinished Parts', DL + 'tesla-unfinished-parts', 'IS NULL filter'],
+  ['1', 'LeetCode', '584. Find Customer Referee', LC + 'find-customer-referee/', 'the <> NULL trap'],
+  ['1', 'LeetCode', '1757. Recyclable and Low Fat Products', LC + 'recyclable-and-low-fat-products/', 'basic WHERE'],
+  ['1', 'LeetCode', '1148. Article Views I', LC + 'article-views-i/', 'DISTINCT'],
+  ['1', 'LeetCode', '1527. Patients With a Condition', LC + 'patients-with-a-condition/', 'LIKE patterns'],
+  ['1', 'DataLemur', 'Laptop vs. Mobile Viewership', DL + 'laptop-mobile-viewership', 'CASE inside sum'],
+  ['1', 'DataLemur', 'Final Account Balance', DL + 'final-account-balance', 'CASE inside sum'],
+  ['1', 'DataLemur', 'App Click-through Rate', DL + 'click-through-rate', 'conditional aggregates'],
+  ['1', 'LeetCode', '610. Triangle Judgement', LC + 'triangle-judgement/', 'CASE'],
+  ['1', 'LeetCode', '1211. Queries Quality and Percentage', LC + 'queries-quality-and-percentage/', 'CASE inside avg'],
+  ['1', 'LeetCode', '1193. Monthly Transactions I', LC + 'monthly-transactions-i/', 'CASE + GROUP BY'],
+  ['1', 'DataLemur', 'Data Science Skills', DL + 'matching-skills', 'IN + HAVING count'],
+  ['1', 'DataLemur', 'Duplicate Job Listings', DL + 'duplicate-job-listings', 'GROUP BY + HAVING'],
+  ['1', 'LeetCode', '570. Managers with at Least 5 Direct Reports', LC + 'managers-with-at-least-5-direct-reports/', 'HAVING'],
+  ['1', 'DataLemur', 'Cities With Completed Trades', DL + 'completed-trades', 'inner join'],
+  ['1', 'DataLemur', 'Well Paid Employees', DL + 'sql-well-paid-employees', 'self join'],
+  ['1', 'LeetCode', '181. Employees Earning More Than Their Managers', LC + 'employees-earning-more-than-their-managers/', 'self join'],
+  ['1', 'LeetCode', '197. Rising Temperature', LC + 'rising-temperature/', 'self join on dates'],
+  ['1', 'LeetCode', '1661. Average Time of Process per Machine', LC + 'average-time-of-process-per-machine/', 'self join'],
+  ['1', 'LeetCode', '1280. Students and Examinations', LC + 'students-and-examinations/', 'cross join + left join'],
+  ['1', 'DataLemur', '3-Topping Pizzas', DL + 'pizzas-topping-cost', 'triple self cross join'],
+  ['1', 'DataLemur', "User's Third Transaction", DL + 'sql-third-transaction', 'row_number'],
+  ['1', 'LeetCode', '178. Rank Scores', LC + 'rank-scores/', 'dense_rank'],
+  ['1', 'DataLemur', 'Top Three Salaries', DL + 'sql-top-three-salaries', 'dense_rank + PARTITION BY'],
+  ['1', 'LeetCode', '185. Department Top Three Salaries', LC + 'department-top-three-salaries/', 'dense_rank + PARTITION BY'],
+  ['1', 'LeetCode', '180. Consecutive Numbers', LC + 'consecutive-numbers/', 'lag / lead'],
+  ['1', 'DataLemur', "Tweets' Rolling Averages", DL + 'rolling-average-tweets', 'ROWS BETWEEN frame'],
+  ['1', 'LeetCode', '1321. Restaurant Growth', LC + 'restaurant-growth/', 'ROWS BETWEEN frame'],
+  ['1', 'LeetCode', '1204. Last Person to Fit in the Bus', LC + 'last-person-to-fit-in-the-bus/', 'running sum'],
+  ['1', 'LeetCode', '177. Nth Highest Salary', LC + 'nth-highest-salary/', 'write a SQL function'],
+  ['2', 'DataLemur', 'Histogram of Tweets', DL + 'sql-histogram-tweets', 'subquery in FROM'],
+  ['2', 'DataLemur', 'Second Highest Salary', DL + 'sql-second-highest-salary', 'single-value subquery'],
+  ['2', 'LeetCode', '176. Second Highest Salary', LC + 'second-highest-salary/', 'subquery that may return NULL'],
+  ['2', 'DataLemur', 'Supercloud Customer', DL + 'supercloud-customer', 'HAVING compared to a subquery'],
+  ['2', 'LeetCode', '550. Game Play Analysis IV', LC + 'game-play-analysis-iv/', 'subquery + join'],
+  ['2', 'DataLemur', 'Spotify Streaming History', DL + 'spotify-streaming-history', 'UNION ALL'],
+  ['2', 'LeetCode', '1907. Count Salary Categories', LC + 'count-salary-categories/', 'UNION ALL'],
+  ['2', 'LeetCode', '1341. Movie Rating', LC + 'movie-rating/', 'UNION ALL'],
+  ['2', 'LeetCode', '602. Friend Requests II', LC + 'friend-requests-ii-who-has-the-most-friends/', 'UNION ALL'],
+  ['2', 'DataLemur', 'Page With No Likes', DL + 'sql-page-with-no-likes', 'anti-join'],
+  ['2', 'LeetCode', '183. Customers Who Never Order', LC + 'customers-who-never-order/', 'anti-join / NOT IN'],
+  ['2', 'LeetCode', '1581. Customer Who Visited but Did Not Make Any Transactions', LC + 'customer-who-visited-but-did-not-make-any-transactions/', 'anti-join'],
+  ['2', 'LeetCode', '577. Employee Bonus', LC + 'employee-bonus/', 'LEFT JOIN + NULL'],
+  ['2', 'LeetCode', '1378. Replace Employee ID With The Unique Identifier', LC + 'replace-employee-id-with-the-unique-identifier/', 'LEFT JOIN'],
+  ['2', 'DataLemur', 'Signup Activation Rate', DL + 'signup-confirmation-rate', 'LEFT JOIN'],
+  ['2', 'LeetCode', '1934. Confirmation Rate', LC + 'confirmation-rate/', 'LEFT JOIN + CASE'],
+  ['2', 'DataLemur', 'IBM db2 Product Analytics', DL + 'sql-ibm-db2-product-analytics', 'LEFT JOIN + COALESCE'],
+  ['2', 'LeetCode', '1251. Average Selling Price', LC + 'average-selling-price/', 'LEFT JOIN + COALESCE'],
+  ['2', 'DataLemur', 'Senior Managers', DL + 'senior-managers-reportees', 'two-level self join (recursion warm-up)'],
+];
+function makePractice(host) {
+  let done = store.get('csci143-practice', {}), quiz = 'all', site = 'all';
+  const qseg = h('div', { class: 'seg', role: 'group', 'aria-label': 'Quiz' });
+  [['all', 'All'], ['1', 'Quiz 1'], ['2', 'Quiz 2']].forEach(([k, v]) => qseg.append(h('button', { type: 'button', 'data-k': k, onclick: () => { quiz = k; draw(); } }, v)));
+  const sseg = h('div', { class: 'seg', role: 'group', 'aria-label': 'Site' });
+  [['all', 'Both sites'], ['DataLemur', 'DataLemur'], ['LeetCode', 'LeetCode']].forEach(([k, v]) => sseg.append(h('button', { type: 'button', 'data-k': k, onclick: () => { site = k; draw(); } }, v)));
+  const prog = h('div', { class: 'progress', 'aria-live': 'polite' }), list = h('ul', { class: 'practice' });
+  host.append(h('div', { class: 'filters' }, qseg, sseg, prog), list);
+  function draw() {
+    $$('button', qseg).forEach(b => b.setAttribute('aria-pressed', String(b.dataset.k === quiz)));
+    $$('button', sseg).forEach(b => b.setAttribute('aria-pressed', String(b.dataset.k === site)));
+    const items = PRACTICE.filter(p => (quiz === 'all' || p[0] === quiz) && (site === 'all' || p[1] === site));
+    list.innerHTML = '';
+    for (const [q, st, title, url, what] of items) {
+      const id = url, cb = h('input', { type: 'checkbox', 'aria-label': `Mark ${title} done` });
+      cb.checked = !!done[id];
+      const li = h('li', { class: done[id] ? 'done' : '' }, cb, h('div', { class: 't' }, h('a', { href: url, target: '_blank', rel: 'noopener' }, title), ' ', h('span', {}, `Quiz ${q}: ${what}`)), h('span', { class: 'site' }, st));
+      cb.addEventListener('change', () => { if (cb.checked) done[id] = 1; else delete done[id]; store.set('csci143-practice', done); li.classList.toggle('done', cb.checked); count(); });
+      list.append(li);
+    }
+    count();
+  }
+  function count() { const n = PRACTICE.filter(p => done[p[3]]).length; prog.innerHTML = `<b>${n}</b> of ${PRACTICE.length} done`; }
+  draw();
+}
+
+/* ---------- difference table ---------- */
+function wireDiffTable() {
+  const target = $('#diff-runner');
+  $$('#difftable tr.try').forEach(tr => {
+    const go = e => { e.preventDefault(); $$('#difftable tr.on').forEach(x => x.classList.remove('on')); tr.classList.add('on'); target._set(tr.dataset.sql); target.scrollIntoView({ block: 'nearest', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' }); };
+    tr.addEventListener('click', go);
+  });
+}
+
+/* ---------- table of contents highlight ---------- */
+function wireToc() {
+  const links = $$('.toc a'), map = new Map(links.map(a => [a.getAttribute('href').slice(1), a]));
+  const obs = new IntersectionObserver(es => {
+    for (const e of es) if (e.isIntersecting) { links.forEach(a => a.classList.remove('on')); const a = map.get(e.target.id); if (a) a.classList.add('on'); }
+  }, { rootMargin: '-15% 0px -75% 0px' });
+  map.forEach((_, id) => { const el = document.getElementById(id); if (el) obs.observe(el); });
+}
+
+/* ---------- boot ---------- */
+$$('[data-runner]').forEach(el => { const src = el.querySelector('script[type="text/sql"]'); makeRunner(el, src ? src.textContent : el.textContent); lazy.observe(el); });
+$$('[data-stepper]').forEach(el => makeStepper(el, STEPPERS[el.dataset.stepper]));
+$$('[data-join]').forEach(el => makeJoinExplorer(el, el.dataset.join));
+$$('[data-anti]').forEach(makeAnti);
+$$('[data-rec]').forEach(makeRec);
+$$('[data-bytes]').forEach(makeBytes);
+$$('[data-window]').forEach(makeWindow);
+$$('[data-practice]').forEach(makePractice);
+$$('ul.checks input').forEach((cb, i) => { const saved = store.get('csci143-checks', {}); cb.checked = !!saved[i]; cb.addEventListener('change', () => { const s = store.get('csci143-checks', {}); if (cb.checked) s[i] = 1; else delete s[i]; store.set('csci143-checks', s); }); });
+wireDiffTable(); wireToc();
+updatePill('pg'); updatePill('sq');
+bootSqlite(); bootPg();
+window.__engines = Eng; window.__run = run; window.__runners = runners;
+</script>
+</body>
+</html>
